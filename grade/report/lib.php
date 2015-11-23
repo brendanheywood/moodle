@@ -364,22 +364,22 @@ abstract class grade_report {
      * Sets up this object's group variables, mainly to restrict the selection of users to display.
      */
     protected function setup_groups() {
-        // find out current groups mode
-        if ($this->groupmode = groups_get_course_groupmode($this->course)) {
-            $this->currentgroup = groups_get_course_group($this->course, true);
-            $this->group_selector = groups_print_course_menu($this->course, $this->pbarurl, true);
+        // Find out current groups mode.
+        $this->groupmode = groups_get_course_groupmode($this->course);
+        $this->currentgroup = groups_get_course_group($this->course, true);
+        $this->group_selector = groups_print_course_menu($this->course, $this->pbarurl, true);
 
-            if ($this->groupmode == SEPARATEGROUPS and !$this->currentgroup and !has_capability('moodle/site:accessallgroups', $this->context)) {
-                $this->currentgroup = -2; // means can not access any groups at all
-            }
+        if ($this->groupmode == SEPARATEGROUPS and !$this->currentgroup and
+            !has_capability('moodle/site:accessallgroups', $this->context)) {
+            $this->currentgroup = -2; // Means can not access any groups at all.
+        }
 
-            if ($this->currentgroup) {
-                $group = groups_get_group($this->currentgroup);
-                $this->currentgroupname     = $group->name;
-                $this->groupsql             = " JOIN {groups_members} gm ON gm.userid = u.id ";
-                $this->groupwheresql        = " AND gm.groupid = :gr_grpid ";
-                $this->groupwheresql_params = array('gr_grpid'=>$this->currentgroup);
-            }
+        if ($this->currentgroup) {
+            $group = groups_get_group($this->currentgroup);
+            $this->currentgroupname     = $group->name;
+            $this->groupsql             = " JOIN {groups_members} gm ON gm.userid = u.id ";
+            $this->groupwheresql        = " AND gm.groupid = :gr_grpid ";
+            $this->groupwheresql_params = array('gr_grpid' => $this->currentgroup);
         }
     }
 

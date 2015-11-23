@@ -502,14 +502,7 @@ function groups_get_activity_groupmode($cm, $course=null) {
 function groups_print_course_menu($course, $urlroot, $return=false) {
     global $USER, $OUTPUT;
 
-    if (!$groupmode = $course->groupmode) {
-        if ($return) {
-            return '';
-        } else {
-            return;
-        }
-    }
-
+    $groupmode = $course->groupmode;
     $context = context_course::instance($course->id);
     $aag = has_capability('moodle/site:accessallgroups', $context);
 
@@ -520,6 +513,15 @@ function groups_print_course_menu($course, $urlroot, $return=false) {
         $usergroups = groups_get_all_groups($course->id, $USER->id, $course->defaultgroupingid);
     } else {
         $allowedgroups = groups_get_all_groups($course->id, $USER->id, $course->defaultgroupingid);
+    }
+
+    $groupcount = count($allowedgroups);
+    if ($groupmode == NOGROUPS && $groupcount == 0) {
+        if ($return) {
+            return '';
+        } else {
+            return;
+        }
     }
 
     $activegroup = groups_get_course_group($course, true, $allowedgroups);
