@@ -34,6 +34,7 @@ require_capability('moodle/site:config', context_system::instance());
 // Get the submitted params
 $disable    = optional_param('disable', 0, PARAM_INT);
 $enable     = optional_param('enable', 0, PARAM_INT);
+$test       = optional_param('test', 0, PARAM_INT);
 
 $headingtitle = get_string('managemessageoutputs', 'message');
 
@@ -53,7 +54,23 @@ if (!empty($enable) && confirm_sesskey()) {
     core_plugin_manager::reset_caches();
 }
 
-if ($disable || $enable) {
+if (!empty($test) && confirm_sesskey()) {
+
+    $testmsg = get_string('testmessage', 'message');
+    $message = new stdClass();
+    $message->component = 'moodle';
+    $message->name = 'notices';
+    $message->userfrom = \core_user::get_noreply_user();
+    $message->userto = $USER;
+    $message->subject = $testmsg;
+    $message->fullmessage = $testmsg;
+    $message->fullmessageformat = FORMAT_PLAIN;
+    $message->fullmessagehtml = "<h4>$testmsg</h4>";
+    $message->smallmessage = $testmsg;
+    message_send($message);
+}
+
+if ($disable || $enable || $test) {
     $url = new moodle_url('message.php');
     redirect($url);
 }
@@ -71,4 +88,7 @@ $messageoutputs = $renderer->manage_messageoutputs($processors);
 echo $OUTPUT->header();
 echo $OUTPUT->heading($headingtitle);
 echo $messageoutputs;
+echo $OUTPUT->single_button(new moodle_url('/admin/message.php', array(
+    'test' => 1, 'sesskey' => sesskey())),
+    get_string('testbutton', 'message') );
 echo $OUTPUT->footer();
