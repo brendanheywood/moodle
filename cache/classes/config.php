@@ -323,6 +323,8 @@ class cache_config {
      * @throws cache_exception
      */
     protected function include_configuration() {
+        global $CFG;
+
         $configuration = array();
         // We need to allow for late static bindings to allow for class path mudling happending for unit tests.
         $cachefile = static::get_config_file_path();
@@ -348,6 +350,21 @@ class cache_config {
         }
         if (!array_key_exists('locks', $configuration) || !is_array($configuration['locks'])) {
             $configuration['locks'] = array();
+        }
+
+        // Apply any config.php forced cache settings.
+        if (isset($CFG->forced_cache_settings)) {
+            $forced = $CFG->forced_cache_settings;
+            $sections = array('stores', 'modemappings');
+
+            foreach ($sections as $section) {
+                if (isset($forced[$section])) {
+                    foreach ($forced[$section] as $key => $val) {
+                        $forced[$section][$key]['forced'] = true;
+                    }
+                    $configuration[$section] = array_replace($configuration[$section], $forced[$section]);
+                }
+            }
         }
 
         return $configuration;

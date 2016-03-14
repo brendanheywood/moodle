@@ -69,6 +69,7 @@ class core_cache_renderer extends plugin_renderer_base {
         $table->data = array();
 
         $defaultstoreactions = get_string('defaultstoreactions', 'cache');
+        $forcedstoreactions = get_string('forcedstoreactions', 'cache');
 
         foreach ($stores as $name => $store) {
             $actions = cache_administration_helper::get_store_instance_actions($name, $store);
@@ -89,6 +90,9 @@ class core_cache_renderer extends plugin_renderer_base {
             $info = '';
             if (!empty($store['default'])) {
                 $info = $this->output->pix_icon('i/info', $defaultstoreactions, '', array('class' => 'icon'));
+            }
+            if (!empty($store['forced'])) {
+                $info = $this->output->pix_icon('i/info', $forcedstoreactions, '', array('class' => 'icon'));
             }
             $htmlactions = array();
             foreach ($actions as $action) {
@@ -114,9 +118,12 @@ class core_cache_renderer extends plugin_renderer_base {
             if (!empty($store['lock']['default'])) {
                 $lock = get_string($store['lock']['name'], 'cache');
             }
-
+            $label = $storename;
+            if (!empty($store['forced'])) {
+                $label .= html_writer::div(get_string('configoverride', 'admin'), 'form-overridden');
+            }
             $row = new html_table_row(array(
-                $storename,
+                $label,
                 get_string('pluginname', 'cachestore_'.$store['plugin']),
                 $readycell,
                 $store['mappings'],
@@ -279,13 +286,10 @@ class core_cache_renderer extends plugin_renderer_base {
     /**
      * Displays mode mappings
      *
-     * @param string $applicationstore
-     * @param string $sessionstore
-     * @param string $requeststore
-     * @param moodle_url $editurl
+     * @param array $defaultmodestores
      * @return string HTML
      */
-    public function mode_mappings($applicationstore, $sessionstore, $requeststore, moodle_url $editurl) {
+    public function mode_mappings($defaultmodestores) {
         $table = new html_table();
         $table->colclasses = array(
             'mode',
@@ -300,12 +304,21 @@ class core_cache_renderer extends plugin_renderer_base {
             get_string('mode', 'cache'),
             get_string('mappings', 'cache'),
         );
-        $table->data = array(
-            array(get_string('mode_'.cache_store::MODE_APPLICATION, 'cache'), $applicationstore),
-            array(get_string('mode_'.cache_store::MODE_SESSION, 'cache'), $sessionstore),
-            array(get_string('mode_'.cache_store::MODE_REQUEST, 'cache'), $requeststore)
+        $table->data = array();
+        $modes = array(
+            cache_store::MODE_APPLICATION,
+            cache_store::MODE_SESSION,
+            cache_store::MODE_REQUEST,
         );
+        foreach ($modes as $mode) {
+            $row = array(
+                get_string('mode_' . $mode, 'cache'),
+                join(', ', $defaultmodestores[$mode]),
+            );
+            $table->data[] = $row;
+        }
 
+        $editurl = new moodle_url('/cache/admin.php', array('action' => 'editmodemappings', 'sesskey' => sesskey()));
         $html = html_writer::start_tag('div', array('id' => 'core-cache-mode-mappings'));
         $html .= $this->output->heading(get_string('defaultmappings', 'cache'), 3);
         $html .= html_writer::table($table);

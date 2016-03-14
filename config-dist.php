@@ -630,6 +630,27 @@ $CFG->admin = 'admin';
 // Example:
 //   $CFG->forced_plugin_settings = array('pluginname'  => array('settingname' => 'value', 'settingname_locked' => true, 'settingname_adv' => true));
 //
+// MUC store instances and default mode mappings can be forced using an array structure
+// identical to that found in muc/config.php (or in $CFG->altcacheconfigpath).
+//
+//   $CFG->forced_cache_settings = array(
+//     'stores' => array(
+//       'memcached-11211' => array(
+//         'name' => 'memcached-11211',
+//         'plugin' => 'memcached',
+//         'configuration' => array(
+//         ...
+//       ),
+//     ),
+//     'modemappings' => array (
+//       0 => array (
+//         'store' => 'memcached-11211',
+//         'mode' => 1,
+//         'sort' => 0,
+//       ),
+//     ),
+//   );
+//
 //=========================================================================
 // 9. PHPUNIT SUPPORT
 //=========================================================================

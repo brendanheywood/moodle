@@ -282,6 +282,7 @@ class cache_mode_mappings_form extends moodleform {
      * The definition of the form
      */
     protected function definition() {
+        global $CFG;
         $form = $this->_form;
         $stores = $this->_customdata;
 
@@ -302,10 +303,23 @@ class cache_mode_mappings_form extends moodleform {
             }
         }
 
+        $forced = array();
+        $instance = cache_config::instance();
+        foreach ($instance->get_mode_mappings() as $mapping) {
+            $mode = $mapping['mode'];
+            if (!empty($mapping['forced'])) {
+                $forced[$mapping['mode']] = 1;
+            }
+        }
+
         $form->addElement('hidden', 'action', 'editmodemappings');
         $form->setType('action', PARAM_ALPHA);
         foreach ($options as $mode => $optionset) {
             $form->addElement('select', 'mode_'.$mode, get_string('mode_'.$mode, 'cache'), $optionset);
+            if (isset($forced[$mode])) {
+                $form->freeze('mode_'.$mode);
+                $form->addHelpButton('mode_'.$mode, 'forcedmodemappings', 'cache');
+            }
         }
 
         $this->add_action_buttons();

@@ -121,13 +121,24 @@ class cache_config_writer extends cache_config {
      * @return array
      */
     protected function generate_configuration_array() {
+        global $CFG;
+
         $configuration = array();
         $configuration['siteidentifier'] = $this->siteidentifier;
-        $configuration['stores'] = $this->configstores;
-        $configuration['modemappings'] = $this->configmodemappings;
-        $configuration['definitions'] = $this->configdefinitions;
-        $configuration['definitionmappings'] = $this->configdefinitionmappings;
-        $configuration['locks'] = $this->configlocks;
+        $sections = array('stores', 'modemappings', 'definitions', 'definitionmappings', 'locks');
+        foreach ($sections as $section) {
+            $property = 'config' . $section;
+            $configuration[$section] = $this->$property;
+
+            // Remove any config.php forced cache settings before saving.
+            if (isset($CFG->forced_cache_settings) && isset($CFG->forced_cache_settings[$section])) {
+                $forced = $CFG->forced_cache_settings[$section];
+                foreach (array_keys($forced) as $index) {
+                    unset($configuration[$section][$index]);
+                }
+            }
+        }
+
         return $configuration;
     }
 
@@ -690,6 +701,7 @@ abstract class cache_administration_helper extends cache_helper {
                 'name' => $name,
                 'plugin' => $details['plugin'],
                 'default' => $details['default'],
+                'forced' => !empty($details['forced']),
                 'isready' => $store->is_ready(),
                 'requirementsmet' => $store->are_requirements_met(),
                 'mappings' => 0,
@@ -881,7 +893,7 @@ abstract class cache_administration_helper extends cache_helper {
         $actions = array();
         if (has_capability('moodle/site:config', context_system::instance())) {
             $baseurl = new moodle_url('/cache/admin.php', array('store' => $name, 'sesskey' => sesskey()));
-            if (empty($storedetails['default'])) {
+            if (empty($storedetails['default']) && empty($storedetails['forced'])) {
                 $actions[] = array(
                     'text' => get_string('editstore', 'cache'),
                     'url' => new moodle_url($baseurl, array('action' => 'editstore', 'plugin' => $storedetails['plugin']))
@@ -1129,6 +1141,10 @@ abstract class cache_administration_helper extends cache_helper {
             }
             if (!array_key_exists($mapping['store'], $adequatestores)) {
                 $modemappings[$mode][$mapping['store']] = $modemappings[$mode][$mapping['store']].' '.$OUTPUT->render($icon);
+            }
+            if (!empty($mapping['forced'])) {
+                $modemappings[$mode][$mapping['store']] .= html_writer::div(get_string('configoverride', 'admin'),
+                    'form-overridden');
             }
         }
         return $modemappings;

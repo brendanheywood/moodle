@@ -298,16 +298,13 @@ echo $renderer->notifications($notifications);
 if ($mform instanceof moodleform) {
     $mform->display();
 } else {
+    echo html_writer::start_tag('div', array('id' => 'adminsettings'));
     echo $renderer->store_plugin_summaries($plugins);
     echo $renderer->store_instance_summariers($stores, $plugins);
     echo $renderer->definition_summaries($definitions, $context);
     echo $renderer->lock_summaries($locks);
-
-    $applicationstore = join(', ', $defaultmodestores[cache_store::MODE_APPLICATION]);
-    $sessionstore = join(', ', $defaultmodestores[cache_store::MODE_SESSION]);
-    $requeststore = join(', ', $defaultmodestores[cache_store::MODE_REQUEST]);
-    $editurl = new moodle_url('/cache/admin.php', array('action' => 'editmodemappings', 'sesskey' => sesskey()));
-    echo $renderer->mode_mappings($applicationstore, $sessionstore, $requeststore, $editurl);
+    echo $renderer->mode_mappings($defaultmodestores);
+    echo html_writer::end_tag('div');
 }
 
 echo $renderer->footer();
