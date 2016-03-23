@@ -91,14 +91,11 @@ require('tabs.php');
 echo $OUTPUT->box_start('generalbox boxaligncenter boxwidthwide');
 
 if (has_capability('mod/feedback:viewreports', $context)) {
-    //button "export to excel"
-    echo $OUTPUT->container_start('mdl-align');
-    $aurl = new moodle_url('analysis_to_excel.php',
-                           array('sesskey' => sesskey(),
-                                 'id' => $id,
-                                 'coursefilter' => $coursefilter));
-
-    echo $OUTPUT->single_button($aurl, get_string('export_to_excel', 'feedback'));
+    echo $OUTPUT->container_start('form-buttons');
+    echo $OUTPUT->download_dataformat_selector(get_string('exportrawdata', 'feedback'), 'download.php', 'dataformat', array(
+        'id' => $id,
+        'coursefilter' => $coursefilter,
+    ));
     echo $OUTPUT->container_end();
 }
 

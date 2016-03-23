@@ -3248,3 +3248,113 @@ function feedback_can_view_analysis($feedback, $context, $courseid = false) {
 
     return feedback_is_already_submitted($feedback->id, $courseid);
 }
+
+/**
+ * Prepare the download data for export
+ *
+ * @param array $items The feedback items
+ * @param stdClass $cm course module object
+ * @param stdClass $context context object
+ * @return array of $columns, $rs, $anon
+ */
+function feedback_download_get_data($items, $cm, $context) {
+    global $DB;
+
+    $columns = array(
+        'courseid'        => get_string('courseid', 'feedback'),
+        'courseidnumber'  => get_string('idnumbercourse', 'moodle'),
+        'courseshortname' => get_string('shortnamecourse'),
+        'coursefullname'  => get_string('course'),
+        'userid'          => get_string('userid', 'grades'),
+    );
+
+    // This array will be merged over anon records to remove any personal data.
+    $anon = array(
+        'userid' => '-'
+    );
+
+    foreach (get_extra_user_fields($context) as $field) {
+        $columns[$field] = get_user_field_name($field);
+        $anon[$field] = '-';
+    }
+
+    $params = array();
+    $select = "
+   SELECT fc.id,
+          fc.anonymous_response,
+          f.course    courseid,
+          c.idnumber  courseidnumber,
+          c.shortname courseshortname,
+          c.fullname  coursefullname,
+          u.id userid";
+    $select .= get_extra_user_fields_sql($context, 'u');
+
+    $from = "
+     FROM {feedback_completed} fc
+     JOIN {feedback} f ON f.id = fc.feedback
+     JOIN {course} c ON c.id = f.course
+LEFT JOIN {user} u ON u.id = fc.userid";
+
+    $mygroupid = groups_get_activity_group($cm);
+    if ($mygroupid) {
+        $select .= ",\n          g.name      groupname";
+        $columns['groupname'] = get_string('group');
+        $from .= "
+     JOIN {groups} g ON g.id = ?
+     JOIN {groups_members} gm ON gm.groupid = g.id AND gm.userid = fc.userid";
+        array_push($params, $mygroupid);
+    }
+
+    $c = 1;
+    foreach ($items as $item) {
+        $key = 'q' . $item->position;
+        $table = 'fv' . $c++;
+        $select .= ",\n          $table.value   $key";
+        $from .= "\nLEFT JOIN {feedback_value} $table ON $table.completed = fc.id AND $table.item = ?";
+        array_push($params, $item->id);
+        $columns[$table] = $item->name;
+        if (!empty($item->label)) {
+            $columns[$table] .= " ($item->label)";
+        }
+    }
+
+    $sql = $select . $from . "
+    WHERE fc.feedback = ?
+ ORDER BY fc.random_response ASC;
+    ";
+    array_push($params, $cm->instance);
+    $rs = $DB->get_recordset_sql($sql, $params);
+    return array($columns, $rs, $anon);
+}
+
+
+/**
+ * This is called once per record to transform the feedback
+ * data, and if needed anonymize it.
+ *
+ * @param object $data  - A single record
+ * @param object $extra - A object representing an anonymized record
+ *
+ * @return object $data - A single record
+ */
+function feedback_download_process_record($data, $extra) {
+    global $DB, $items;
+
+    // If the response is anonymous then redact the record by merging an
+    // empty data object over the top.
+    if ($data->anonymous_response != FEEDBACK_ANONYMOUS_NO) {
+        $data = (object) array_merge((array)$data, (array)$extra);
+    }
+    foreach ($items as $item) {
+        $itemobj = feedback_get_item_class($item->typ);
+        $key = 'q' . $item->position;
+        $val = isset($data->$key) ? $data->$key : '';
+        $val = $itemobj->get_printval($item, (object) array('value' => $val) );
+        $val = trim($val);
+        $data->$key = $val;
+    }
+    unset ($data->anonymous_response);
+    unset ($data->id);
+    return $data;
+}
+

@@ -70,10 +70,10 @@ if ( has_capability('mod/feedback:viewreports', $context) ) {
     echo isset($groupselect) ? $groupselect : '';
     echo '<div class="clearer"></div>';
 
-    //button "export to excel"
     echo $OUTPUT->container_start('form-buttons');
-    $aurl = new moodle_url('analysis_to_excel.php', array('sesskey'=>sesskey(), 'id'=>$id));
-    echo $OUTPUT->single_button($aurl, get_string('export_to_excel', 'feedback'));
+    echo $OUTPUT->download_dataformat_selector(get_string('exportrawdata', 'feedback'), 'download.php', 'dataformat', array(
+        'id' => $id,
+    ));
     echo $OUTPUT->container_end();
 }
 
