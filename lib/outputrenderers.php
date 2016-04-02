@@ -1877,6 +1877,50 @@ class core_renderer extends renderer_base {
     }
 
     /**
+     * Returns a dataformat selection and download form
+     *
+     * @param string $label A text label
+     * @param moodle_url|string $base The download page url
+     * @param string $param The query param which will hold the type of the download
+     * @param array $params Extra params sent to the download page
+     * @return string HTML fragment
+     */
+    public function download_dataformat_selector($label, $base, $param = 'dataformat', $params = array()) {
+        global $PAGE;
+
+        $formats = core_plugin_manager::instance()->get_plugins_of_type('dataformat');
+        $options = array();
+        foreach ($formats as $format) {
+            if ($format->is_enabled()) {
+                $options[] = array(
+                    'value' => $format->name,
+                    'label' => get_string('shortname', $format->component),
+                );
+            }
+        }
+        $hiddenparams = array();
+        foreach ($params as $key => $name) {
+            $hiddenparams[] = array(
+                'name' => $key,
+                'value' => $name,
+            );
+        }
+        $data = array(
+            'label' => $label,
+            'base' => $base,
+            'param' => $param,
+            'params' => $hiddenparams,
+            'options' => $options,
+            'sesskey' => sesskey(),
+            'submit' => get_string('download'),
+        );
+
+        $renderer = $PAGE->get_renderer('core');
+        return $renderer->render_from_template('core/dataformat_selector', $data);
+    }
+
+
+    /**
      * Internal implementation of single_select rendering
      *
      * @param single_select $select
