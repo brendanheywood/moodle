@@ -57,6 +57,8 @@ function download_as_dataformat($filename, $dataformat, $columns, $iterator, $ca
     // Close the session so that the users other tabs in the same session are not blocked.
     \core\session\manager::write_close();
 
+e(display_size(memory_get_peak_usage()));
+
     $format->set_filename($filename);
     $format->send_http_headers();
     $format->write_header($columns);
@@ -71,6 +73,7 @@ function download_as_dataformat($filename, $dataformat, $columns, $iterator, $ca
         $format->write_record($row, $c++);
     }
     $format->write_footer($columns);
+e(display_size(memory_get_peak_usage()));
 }
 
 /**

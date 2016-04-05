@@ -15,16 +15,13 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Dataformat version information
+ * csvlib dataformat lang strings.
  *
- * @package    dataformat_csv
+ * @package    dataformat_csvlib
  * @copyright  2016 Brendan Heywood (brendan@catalyst-au.net)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
-$plugin->version   = 2016031700;
-$plugin->requires  = 2016031700;  // Requires this Moodle version.
-$plugin->component = 'dataformat_csv';
+$string['dataformat'] = 'Legacy csvlib (.csv)';
+$string['shortname'] = 'csvlib';
 

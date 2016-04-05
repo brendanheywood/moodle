@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Data activity filter version information
+ * Dataformat version information
  *
  * @package    dataformat_html
  * @copyright  2016 Brendan Heywood (brendan@catalyst-au.net)
