@@ -2190,39 +2190,43 @@ class assign {
         $formparams = array(
             'instance' => $this->get_instance()
         );
-
+        $errors = 0;
         $extrauserfields = get_extra_user_fields($this->get_context());
 
         if ($mform) {
-            $submitteddata = $mform->get_data();
-            $users = $submitteddata->selectedusers;
-            $userlist = explode(',', $users);
 
-            $data->selectedusers = $users;
-            $data->userid = 0;
+            if ($submitteddata = $mform->get_data()) {
+                $users = $submitteddata->selectedusers;
+                $userlist = explode(',', $users);
 
-            $usershtml = '';
-            $usercount = 0;
-            foreach ($userlist as $userid) {
-                if ($usercount >= 5) {
-                    $usershtml .= get_string('moreusers', 'assign', count($userlist) - 5);
-                    break;
+                $data->selectedusers = $users;
+                $data->userid = 0;
+
+                $usershtml = '';
+                $usercount = 0;
+                foreach ($userlist as $userid) {
+                    if ($usercount >= 5) {
+                        $usershtml .= get_string('moreusers', 'assign', count($userlist) - 5);
+                        break;
+                    }
+                    $user = $DB->get_record('user', array('id' => $userid), '*', MUST_EXIST);
+
+                    $usershtml .= $this->get_renderer()->render(new assign_user_summary($user,
+                                                                        $this->get_course()->id,
+                                                                        has_capability('moodle/site:viewfullnames',
+                                                                        $this->get_course_context()),
+                                                                        $this->is_blind_marking(),
+                                                                        $this->get_uniqueid_for_user($user->id),
+                                                                        $extrauserfields,
+                                                                        !$this->is_active_user($userid)));
+                    $usercount += 1;
                 }
-                $user = $DB->get_record('user', array('id' => $userid), '*', MUST_EXIST);
 
-                $usershtml .= $this->get_renderer()->render(new assign_user_summary($user,
-                                                                    $this->get_course()->id,
-                                                                    has_capability('moodle/site:viewfullnames',
-                                                                    $this->get_course_context()),
-                                                                    $this->is_blind_marking(),
-                                                                    $this->get_uniqueid_for_user($user->id),
-                                                                    $extrauserfields,
-                                                                    !$this->is_active_user($userid)));
-                $usercount += 1;
+                $formparams['userscount'] = count($userlist);
+                $formparams['usershtml'] = $usershtml;
+            } else {
+                $errors = 1;
             }
-
-            $formparams['userscount'] = count($userlist);
-            $formparams['usershtml'] = $usershtml;
 
         } else {
             $userid = required_param('userid', PARAM_INT);
@@ -2245,7 +2249,9 @@ class assign {
             $formparams['usershtml'] = $usershtml;
         }
 
-        $mform = new mod_assign_extension_form(null, $formparams);
+        if (!$errors) {
+            $mform = new mod_assign_extension_form(null, $formparams);
+        }
         $mform->set_data($data);
         $header = new assign_header($this->get_instance(),
                                     $this->get_context(),
