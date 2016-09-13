@@ -28,13 +28,14 @@ defined('MOODLE_INTERNAL') || die();
 /**#@+
  * These constants relate to the table's handling of URL parameters.
  */
-define('TABLE_VAR_SORT',   1);
-define('TABLE_VAR_HIDE',   2);
-define('TABLE_VAR_SHOW',   3);
-define('TABLE_VAR_IFIRST', 4);
-define('TABLE_VAR_ILAST',  5);
-define('TABLE_VAR_PAGE',   6);
-define('TABLE_VAR_RESET',  7);
+define('TABLE_VAR_SORT',    1);
+define('TABLE_VAR_HIDE',    2);
+define('TABLE_VAR_SHOW',    3);
+define('TABLE_VAR_IFIRST',  4);
+define('TABLE_VAR_ILAST',   5);
+define('TABLE_VAR_PAGE',    6);
+define('TABLE_VAR_RESET',   7);
+define('TABLE_VAR_ISEARCH', 8);
 /**#@-*/
 
 /**#@+
@@ -133,13 +134,14 @@ class flexible_table {
     function __construct($uniqueid) {
         $this->uniqueid = $uniqueid;
         $this->request  = array(
-            TABLE_VAR_SORT   => 'tsort',
-            TABLE_VAR_HIDE   => 'thide',
-            TABLE_VAR_SHOW   => 'tshow',
-            TABLE_VAR_IFIRST => 'tifirst',
-            TABLE_VAR_ILAST  => 'tilast',
-            TABLE_VAR_PAGE   => 'page',
-            TABLE_VAR_RESET  => 'treset'
+            TABLE_VAR_SORT    => 'tsort',
+            TABLE_VAR_HIDE    => 'thide',
+            TABLE_VAR_SHOW    => 'tshow',
+            TABLE_VAR_IFIRST  => 'tifirst',
+            TABLE_VAR_ILAST   => 'tilast',
+            TABLE_VAR_PAGE    => 'page',
+            TABLE_VAR_RESET   => 'treset',
+            TABLE_VAR_ISEARCH => 'tisearch',
         );
     }
 
@@ -460,6 +462,7 @@ class flexible_table {
                 'sortby'   => array(),
                 'i_first'  => '',
                 'i_last'   => '',
+                'i_search' => '',
                 'textsort' => $this->column_textsort,
             );
         }
@@ -520,6 +523,11 @@ class flexible_table {
         $ifirst = optional_param($this->request[TABLE_VAR_IFIRST], null, PARAM_RAW);
         if (!is_null($ifirst) && ($ifirst === '' || strpos(get_string('alphabet', 'langconfig'), $ifirst) !== false)) {
             $this->prefs['i_first'] = $ifirst;
+        }
+
+        $isearch = optional_param($this->request[TABLE_VAR_ISEARCH], null, PARAM_RAW);
+        if (!is_null($isearch)) {
+            $this->prefs['i_search'] = $isearch;
         }
 
         // Save user preferences if they have changed.
@@ -672,6 +680,26 @@ class flexible_table {
             if (!empty($this->prefs['i_last'])) {
                 $conditions[] = $DB->sql_like('lastname', ':ilastc'.$i, false, false);
                 $params['ilastc'.$i] = $this->prefs['i_last'].'%';
+            }
+            if (!empty($this->prefs['i_search'])) {
+                // First we break up the search into tokens, then we match all records
+                // which that token matches either the firstname OR the lastname.
+                $keywords = preg_split("/\s+/", $this->prefs['i_search']);
+                $fields = array('idnumber', 'username', 'email', 'firstname', 'lastname',
+                        'lastnamephonetic', 'firstnamephonetic', 'middlename', 'alternatename');
+                foreach ($keywords as $word) {
+                    $c = 0;
+                    $condition = '';
+                    foreach ($fields as $field) {
+                        if ($condition) {
+                            $condition .= ' OR ';
+                        }
+                        $condition .= $DB->sql_like($field, ':isearch'.$field.$i, false, false);
+                        $params['isearch'.$field.$i] = '%'.$word.'%';
+                    }
+                    $conditions[] = "($condition)";
+                    $i++;
+                }
             }
         }
 
@@ -976,8 +1004,11 @@ class flexible_table {
      * This function is not part of the public api.
      */
     function print_initials_bar() {
-        if ((!empty($this->prefs['i_last']) || !empty($this->prefs['i_first']) ||$this->use_initials)
-                    && isset($this->columns['fullname'])) {
+        if ((!empty($this->prefs['i_last']) ||
+             !empty($this->prefs['i_first']) ||
+             !empty($this->prefs['i_search']) ||
+                $this->use_initials)
+            && isset($this->columns['fullname'])) {
 
             $alpha  = explode(',', get_string('alphabet', 'langconfig'));
 
@@ -998,6 +1029,32 @@ class flexible_table {
             }
             $this->print_one_initials_bar($alpha, $ilast, 'lastinitial',
                     get_string('lastname'), $this->request[TABLE_VAR_ILAST]);
+
+            // Also show a search filter box which also searches on first and
+            // last name. Because we may or may not be wrapped inside another
+            // form we cannot use a form here, so this is a pure js progressive
+            // enhancement and those without JS will not get this.
+            if (!empty($this->prefs['i_search'])) {
+                $isearch = $this->prefs['i_search'];
+            } else {
+                $isearch = '';
+            }
+            echo html_writer::start_tag('div', array('class' => 'initialbar search visibleifjs'));
+            echo html_writer::tag('span', get_string('search') . ': ', array('class' => 'initialbarlabel'));
+
+            echo html_writer::tag('input', null,  array(
+                'id' => 'tisearch',
+                'type' => 'text',
+                'data-url' => $this->baseurl->out(false, array('tisearch' => '')),
+                'class' => 'initialbarsearch', 'value' => $isearch,
+            ));
+            echo html_writer::tag('button', 'Go', array(
+                'type' => 'text',
+                'class' => 'initialbarsearch',
+                'onclick' => "s=document.getElementById('tisearch');location=s.getAttribute('data-url')+".
+                    "'='+encodeURIComponent(s.value);return false",
+            ));
+            echo html_writer::end_tag('div');
         }
     }
 
