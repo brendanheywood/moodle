@@ -120,42 +120,12 @@ class core_user_renderer extends plugin_renderer_base {
         $content .= $OUTPUT->heading($heading.get_string('labelsep', 'langconfig').$usercount.'/'.$totalcount, 3);
 
         // Bar of first initials.
-        $content .= html_writer::start_tag('div', array('class' => 'initialbar firstinitial'));
-        $content .= html_writer::label(get_string('firstname').' : ', null);
+        $content .= $OUTPUT->render_initials_bar($firstinitial, 'firstinitial',
+            get_string('firstname'), 'sifirst', $url);
 
-        if (!empty($firstinitial)) {
-            $content .= html_writer::link($url.'&sifirst=', $strall);
-        } else {
-            $content .= html_writer::tag('strong', $strall);
-        }
-
-        foreach ($alpha as $letter) {
-            if ($letter == $firstinitial) {
-                $content .= html_writer::tag('strong', $letter);
-            } else {
-                $content .= html_writer::link($url.'&sifirst='.$letter, $letter);
-            }
-        }
-        $content .= html_writer::end_tag('div');
-
-         // Bar of last initials.
-        $content .= html_writer::start_tag('div', array('class' => 'initialbar lastinitial'));
-        $content .= html_writer::label(get_string('lastname').' : ', null);
-
-        if (!empty($lastinitial)) {
-            $content .= html_writer::link($url.'&silast=', $strall);
-        } else {
-            $content .= html_writer::tag('strong', $strall);
-        }
-
-        foreach ($alpha as $letter) {
-            if ($letter == $lastinitial) {
-                $content .= html_writer::tag('strong', $letter);
-            } else {
-                $content .= html_writer::link($url.'&silast='.$letter, $letter);
-            }
-        }
-        $content .= html_writer::end_tag('div');
+        // Bar of last initials.
+        $content .= $OUTPUT->render_initials_bar($lastinitial, 'lastinitial',
+            get_string('lastname'), 'silast', $url);
 
         $content .= html_writer::end_tag('div');
         $content .= html_writer::tag('div', '&nbsp;');

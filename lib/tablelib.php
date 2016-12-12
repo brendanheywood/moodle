@@ -929,80 +929,33 @@ class flexible_table {
     }
 
     /**
-     * Helper function, used by {@link print_initials_bar()} to output one initial bar.
-     * @param array $alpha of letters in the alphabet.
-     * @param string $current the currently selected letter.
-     * @param string $class class name to add to this initial bar.
-     * @param string $title the name to put in front of this initial bar.
-     * @param string $urlvar URL parameter name for this initial.
-     */
-    protected function print_one_initials_bar($alpha, $current, $class, $title, $urlvar) {
-        echo html_writer::start_tag('div', array('class' => 'initialbar ' . $class)) .
-                html_writer::tag('span', $title . ': ', array('class' => 'initialbarlabel'));
-        if ($current) {
-            echo html_writer::link($this->baseurl->out(false, array($urlvar => '')),
-                    get_string('all'), array('class' => 'initialbarall'));
-        } else {
-            echo html_writer::tag('strong', get_string('all'), array('class' => 'initialbarall'));
-        }
-
-        // We want to find a letter grouping size which suits the language so
-        // find the largest group size which is less than 15 chars. By always
-        // using a max number of groups which is a factor of 2, we always get
-        // nice wrapping, and the last row is always the shortest.
-        $groupsize = count($alpha);
-        $groups = 1;
-        while ($groupsize > 15) {
-            $groups *= 2;
-            $groupsize = ceil(count($alpha) / $groups);
-        }
-
-        echo html_writer::start_tag('span', array('class' => 'initialbargroups'));
-        echo html_writer::start_tag('span', array('class' => 'initialbargroup'));
-        $c = 0;
-        foreach ($alpha as $letter) {
-            if ($c++ > 0 && $c % $groupsize == 1) {
-                echo html_writer::end_tag('span') . ' ';
-                echo html_writer::start_tag('span', array('class' => 'initialbargroup'));
-            }
-            if ($letter === $current) {
-                echo html_writer::tag('strong', $letter);
-            } else {
-                echo html_writer::link($this->baseurl->out(false, array($urlvar => $letter)), $letter);
-            }
-        }
-        echo html_writer::end_tag('span');
-        echo html_writer::end_tag('span');
-
-        echo html_writer::end_tag('div');
-    }
-
-    /**
      * This function is not part of the public api.
      */
     function print_initials_bar() {
+        global $OUTPUT;
         if ((!empty($this->prefs['i_last']) || !empty($this->prefs['i_first']) ||$this->use_initials)
                     && isset($this->columns['fullname'])) {
 
-            $alpha  = explode(',', get_string('alphabet', 'langconfig'));
-
-            // Bar of first initials
             if (!empty($this->prefs['i_first'])) {
                 $ifirst = $this->prefs['i_first'];
             } else {
                 $ifirst = '';
             }
-            $this->print_one_initials_bar($alpha, $ifirst, 'firstinitial',
-                    get_string('firstname'), $this->request[TABLE_VAR_IFIRST]);
 
-            // Bar of last initials
             if (!empty($this->prefs['i_last'])) {
                 $ilast = $this->prefs['i_last'];
             } else {
                 $ilast = '';
             }
-            $this->print_one_initials_bar($alpha, $ilast, 'lastinitial',
-                    get_string('lastname'), $this->request[TABLE_VAR_ILAST]);
+
+            // Bar of first initials.
+            echo $OUTPUT->render_initials_bar($ifirst, 'firstinitial',
+                get_string('firstname'), $this->request[TABLE_VAR_IFIRST], $this->baseurl);
+
+            // Bar of last initials.
+            echo $OUTPUT->render_initials_bar($ilast, 'lastinitial',
+                get_string('lastname'), $this->request[TABLE_VAR_ILAST], $this->baseurl);
+
         }
     }
 
