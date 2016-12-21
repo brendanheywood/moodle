@@ -4278,9 +4278,11 @@ EOD;
         }
 
         // We want to find a letter grouping size which suits the language so
-        // find the largest group size which is less than 15 chars. By always
-        // using a max number of groups which is a factor of 2, we always get
-        // nice wrapping, and the last row is always the shortest.
+        // find the largest group size which is less than 15 chars.
+        // The choice of 15 chars is the largest number of chars that reasonably
+        // fits on the smallest supported screen size. By always using a max number
+        // of groups which is a factor of 2, we always get nice wrapping, and the
+        // last row is always the shortest.
         $groupsize = count($alpha);
         $groups = 1;
         while ($groupsize > 15) {
@@ -4310,6 +4312,32 @@ EOD;
         $data->all = get_string('all');
 
         return $this->render_from_template('core/initials_bar', $data);
+
+    }
+
+    /**
+     * Renders an table filters.
+     *
+     * @param string $url URL object.
+     * @param string $ifirst the first initial of the firstname.
+     * @param string $ilast the last initial of the firstname.
+     * @param string $prefixfirst prefix in URL for firstname.
+     * @param string $prefixlast prefix in URL for lastname.
+     */
+    public function render_table_filters($url, $ifirst, $ilast, $prefixfirst, $prefixlast) {
+        global $OUTPUT, $USER;
+
+        $html = '';
+
+        // Bar of first initials.
+        $html .= $OUTPUT->render_initials_bar($ifirst, 'firstinitial',
+            get_string('firstname'), $prefixfirst, $url);
+
+        // Bar of last initials.
+        $html .= $OUTPUT->render_initials_bar($ilast, 'lastinitial',
+            get_string('lastname'), $prefixlast, $url);
+
+        return $html;
 
     }
 

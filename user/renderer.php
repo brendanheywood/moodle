@@ -106,8 +106,12 @@ class core_user_renderer extends plugin_renderer_base {
     public function user_search($url, $firstinitial, $lastinitial, $usercount, $totalcount, $heading = null) {
         global $OUTPUT;
 
-        $strall = get_string('all');
-        $alpha  = explode(',', get_string('alphabet', 'langconfig'));
+        if ($firstinitial !== 'all') {
+            set_user_preference('ifirst', $firstinitial);
+        }
+        if ($lastinitial !== 'all') {
+            set_user_preference('ilast', $lastinitial);
+        }
 
         if (!isset($heading)) {
             $heading = get_string('allparticipants');
@@ -119,13 +123,10 @@ class core_user_renderer extends plugin_renderer_base {
         // Search utility heading.
         $content .= $OUTPUT->heading($heading.get_string('labelsep', 'langconfig').$usercount.'/'.$totalcount, 3);
 
-        // Bar of first initials.
-        $content .= $OUTPUT->render_initials_bar($firstinitial, 'firstinitial',
-            get_string('firstname'), 'sifirst', $url);
-
-        // Bar of last initials.
-        $content .= $OUTPUT->render_initials_bar($lastinitial, 'lastinitial',
-            get_string('lastname'), 'silast', $url);
+        // Initials bar.
+        $prefixfirst = 'sifirst';
+        $prefixlast = 'silast';
+        $content .= $OUTPUT->render_table_filters($url, $firstinitial, $lastinitial, $prefixfirst, $prefixlast);
 
         $content .= html_writer::end_tag('div');
         $content .= html_writer::tag('div', '&nbsp;');

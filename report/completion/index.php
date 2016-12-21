@@ -233,13 +233,10 @@ $link .= '&amp;start=';
 
 $pagingbar = '';
 
-// Bar of first initials.
-$pagingbar .= $OUTPUT->render_initials_bar($sifirst, 'firstinitial',
-    get_string('firstname'), 'sifirst', $url);
-
-// Bar of last initials.
-$pagingbar .= $OUTPUT->render_initials_bar($silast, 'lastinitial',
-    get_string('lastname'), 'silast', $url);
+// Initials bar.
+$prefixfirst = 'sifirst';
+$prefixlast = 'silast';
+$pagingbar .= $OUTPUT->render_table_filters($url, $sifirst, $silast, $prefixfirst, $prefixlast);
 
 // Do we need a paging bar?
 if ($total > COMPLETION_REPORT_PAGE) {

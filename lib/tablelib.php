@@ -933,8 +933,9 @@ class flexible_table {
      */
     function print_initials_bar() {
         global $OUTPUT;
+
         if ((!empty($this->prefs['i_last']) || !empty($this->prefs['i_first']) ||$this->use_initials)
-                    && isset($this->columns['fullname'])) {
+            && isset($this->columns['fullname'])) {
 
             if (!empty($this->prefs['i_first'])) {
                 $ifirst = $this->prefs['i_first'];
@@ -948,15 +949,11 @@ class flexible_table {
                 $ilast = '';
             }
 
-            // Bar of first initials.
-            echo $OUTPUT->render_initials_bar($ifirst, 'firstinitial',
-                get_string('firstname'), $this->request[TABLE_VAR_IFIRST], $this->baseurl);
-
-            // Bar of last initials.
-            echo $OUTPUT->render_initials_bar($ilast, 'lastinitial',
-                get_string('lastname'), $this->request[TABLE_VAR_ILAST], $this->baseurl);
-
+            $prefixfirst = $this->request[TABLE_VAR_IFIRST];
+            $prefixlast = $this->request[TABLE_VAR_ILAST];
+            echo $OUTPUT->render_table_filters($this->baseurl, $ifirst, $ilast, $prefixfirst, $prefixlast);
         }
+
     }
 
     /**

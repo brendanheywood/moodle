@@ -567,16 +567,8 @@ if ($mode === MODE_USERDETAILS) {    // Print simple listing.
     } else {
         if ($totalcount > $perpage) {
 
-            $firstinitial = $table->get_initial_first();
-            $lastinitial  = $table->get_initial_last();
-
-            // Bar of first initials.
-            echo $OUTPUT->render_initials_bar($firstinitial, 'firstinitial',
-                get_string('firstname'), 'sifirst', $baseurl);
-
-            // Bar of last initials.
-            echo $OUTPUT->render_initials_bar($lastinitial, 'lastinitial',
-                get_string('lastname'), 'silast', $baseurl);
+            // Initials bar.
+            $table->print_initials_bar();
 
             $pagingbar = new paging_bar($matchcount, intval($table->get_page_start() / $perpage), $perpage, $baseurl);
             $pagingbar->pagevar = 'spage';
