@@ -4286,32 +4286,6 @@ EOD;
         return $this->render_from_template('core/progress_bar', $data);
     }
 
-    /**
-     * Renders an table filters.
-     *
-     * @param string $url URL object.
-     * @param string $ifirst the first initial of the firstname.
-     * @param string $ilast the last initial of the firstname.
-     * @param string $prefixfirst prefix in URL for firstname.
-     * @param string $prefixlast prefix in URL for lastname.
-     */
-    public function render_table_filters($url, $ifirst, $ilast, $prefixfirst, $prefixlast) {
-        global $OUTPUT, $USER;
-
-        $html = '';
-
-        // Bar of first initials.
-        $html .= $OUTPUT->render_initials_bar($ifirst, 'firstinitial',
-            get_string('firstname'), $prefixfirst, $url);
-
-        // Bar of last initials.
-        $html .= $OUTPUT->render_initials_bar($ilast, 'lastinitial',
-            get_string('lastname'), $prefixlast, $url);
-
-        return $html;
-
-    }
-
 }
 
 /**
