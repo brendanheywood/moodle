@@ -951,7 +951,8 @@ class flexible_table {
 
             $prefixfirst = $this->request[TABLE_VAR_IFIRST];
             $prefixlast = $this->request[TABLE_VAR_ILAST];
-            echo $OUTPUT->render_table_filters($this->baseurl, $ifirst, $ilast, $prefixfirst, $prefixlast);
+            echo $OUTPUT->initials_bar($ifirst, 'firstinitial', get_string('firstname'), $prefixfirst, $this->baseurl);
+            echo $OUTPUT->initials_bar($ilast, 'lastinitial', get_string('lastname'), $prefixlast, $this->baseurl);
         }
 
     }

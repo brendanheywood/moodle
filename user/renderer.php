@@ -126,7 +126,8 @@ class core_user_renderer extends plugin_renderer_base {
         // Initials bar.
         $prefixfirst = 'sifirst';
         $prefixlast = 'silast';
-        $content .= $OUTPUT->render_table_filters($url, $firstinitial, $lastinitial, $prefixfirst, $prefixlast);
+        $content .= $OUTPUT->initials_bar($firstinitial, 'firstinitial', get_string('firstname'), $prefixfirst, $url);
+        $content .= $OUTPUT->initials_bar($lastinitial, 'lastinitial', get_string('lastname'), $prefixlast, $url);
 
         $content .= html_writer::end_tag('div');
         $content .= html_writer::tag('div', '&nbsp;');

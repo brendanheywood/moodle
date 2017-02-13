@@ -2840,6 +2840,35 @@ EOD;
     }
 
     /**
+     * Returns HTML to display initials bar to provide access to other pages  (usually in a search)
+     *
+     * Theme developers: DO NOT OVERRIDE! Please override function
+     * {@link core_renderer::render_initials_bar()} instead.
+     *
+     * @param string $current the currently selected letter.
+     * @param string $class class name to add to this initial bar.
+     * @param string $title the name to put in front of this initial bar.
+     * @param string $urlvar URL parameter name for this initial.
+     * @param string $url URL object.
+     * @param array $alpha of letters in the alphabet.
+     * @return string the HTML to output.
+     */
+    public function initials_bar($current, $class, $title, $urlvar, $url, $alpha = null) {
+        $ib = new initials_bar($current, $class, $title, $urlvar, $url, $alpha);
+        return $this->render($ib);
+    }
+
+    /**
+     * Internal implementation of initials bar rendering.
+     *
+     * @param initials_bar $initialsbar
+     * @return string
+     */
+    protected function render_initials_bar(initials_bar $initialsbar) {
+        return $this->render_from_template('core/initials_bar', $initialsbar->export_for_template($this));
+    }
+
+    /**
      * Output the place a skip link goes to.
      *
      * @param string $id The target name from the corresponding $PAGE->requires->skip_link_to($target) call.
@@ -4255,64 +4284,6 @@ EOD;
         global $PAGE;
         $data = $bar->export_for_template($this);
         return $this->render_from_template('core/progress_bar', $data);
-    }
-
-    /**
-     * Renders an initials bar.
-     *
-     * @param string $current the currently selected letter.
-     * @param string $class class name to add to this initial bar.
-     * @param string $title the name to put in front of this initial bar.
-     * @param string $urlvar URL parameter name for this initial.
-     * @param string $url URL object.
-     * @param array $alpha of letters in the alphabet.
-     */
-    public function render_initials_bar($current, $class, $title, $urlvar, $url, $alpha = null) {
-
-        if ($alpha == null) {
-            $alpha = explode(',', get_string('alphabet', 'langconfig'));
-        }
-
-        if ($current == 'all') {
-            $current = '';
-        }
-
-        // We want to find a letter grouping size which suits the language so
-        // find the largest group size which is less than 15 chars.
-        // The choice of 15 chars is the largest number of chars that reasonably
-        // fits on the smallest supported screen size. By always using a max number
-        // of groups which is a factor of 2, we always get nice wrapping, and the
-        // last row is always the shortest.
-        $groupsize = count($alpha);
-        $groups = 1;
-        while ($groupsize > 15) {
-            $groups *= 2;
-            $groupsize = ceil(count($alpha) / $groups);
-        }
-
-        $groupsizelimit = 0;
-        $groupnumber = 0;
-        foreach ($alpha as $letter) {
-            if ($groupsizelimit++ > 0 && $groupsizelimit % $groupsize == 1) {
-                $groupnumber++;
-            }
-            $groupletter = new stdClass();
-            $groupletter->name = $letter;
-            $groupletter->url = $url->out(false, array($urlvar => $letter));
-            if ($letter == $current) {
-                $groupletter->selected = $current;
-            }
-            $data->group[$groupnumber]->letter[] = $groupletter;
-        }
-
-        $data->class = $class;
-        $data->title = $title;
-        $data->url = $url->out(false, array($urlvar => ''));
-        $data->current = $current;
-        $data->all = get_string('all');
-
-        return $this->render_from_template('core/initials_bar', $data);
-
     }
 
     /**
