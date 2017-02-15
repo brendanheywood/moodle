@@ -74,25 +74,26 @@
     }
 }}
 <div class="initialbar {{class}}">
-    <span class="initialbarlabel">{{title}}:</span>
+    <span class="initialbarlabel">{{title}}</span>
     {{#current}}
-        <a href="{{url}}" class="initialbarall">{{all}}</a>
+        <a class="initialbarall letter" href="{{url}}">{{all}}</a>
     {{/current}}
     {{^current}}
-        <strong class="initialbarall">{{all}}</strong>
+        <span class="initialbarall letter active">{{all}}</span>
     {{/current}}
+
     <span class="initialbargroups">
         {{#group}}
-            <span class="initialbargroup">
+            <ul class="initialbargroup">
                 {{#letter}}
                     {{#selected}}
-                        <strong >{{name}}</strong>
+                        <li><span class="letter active">{{name}}</span></li>
                     {{/selected}}
                     {{^selected}}
-                        <a href="{{url}}">{{name}}</a>
+                        <li><a class="letter" href="{{url}}">{{name}}</a></li>
                     {{/selected}}
                 {{/letter}}
-            </span>
+            </ul>
         {{/group}}
     </span>
 </div>

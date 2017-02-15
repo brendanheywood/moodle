@@ -1278,22 +1278,7 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.initialbar .initialbargroups {
-  float: left;
-}
-.initialbar .initialbargroup {
-  float: left;
-  display: inline-block;
-  white-space: nowrap;
-}
-.initialbar a,
-.initialbar strong {
-  display: inline-block;
-  min-width: 1.4em;
-  text-align: center;
-}
-.initialbar a.initialbarall,
-.initialbar strong.initialbarall {
+.initialbar .initialbarall {
   float: left;
   width: 4em;
   margin-bottom: 2px;
@@ -1301,9 +1286,35 @@ body#page-lib-editor-tinymce-plugins-moodlemedia-preview {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.initialbar strong {
-  background: #0070a8;
-  color: #fff;
+.initialbar .initialbargroups {
+  float: left;
+}
+.initialbar .initialbargroup {
+  float: left;
+  display: inline-block;
+  white-space: nowrap;
+  margin: 0;
+  padding: 0;
+}
+.initialbar .initialbargroup li {
+  float: left;
+  list-style: none;
+}
+.initialbar .letter {
+  display: inline-block;
+  height: 1.35em;
+  min-width: 1.35em;
+  text-align: center;
+  color: #0070a8;
+  background: #fff;
+  border-width: 1px;
+  border-color: #ddd;
+  border-style: solid;
+}
+.initialbar .letter:hover,
+.initialbar .letter.active {
+  color: white;
+  background-color: #0070a8;
 }
 /* Moodle Dialogue Settings (moodle-core-dialogue)  */
 .moodle-dialogue-base .moodle-dialogue-lightbox {
