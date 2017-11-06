@@ -469,6 +469,31 @@ class tool_uploadcourse_course_testcase extends advanced_testcase {
         $this->assertEquals(ENROL_INSTANCE_ENABLED, $enroldata['self']->status);
     }
 
+    public function test_coredump() {
+        global $DB;
+        $this->resetAfterTest(true);
+
+        $data = array(
+            'shortname' => 'c1',
+            'fullname' => 'Fullname',
+            'category' => '1',
+            'enrolment_3' => 'manual',
+        );
+
+        $mode       = tool_uploadcourse_processor::MODE_CREATE_NEW;
+        $updatemode = tool_uploadcourse_processor::UPDATE_NOTHING;
+        $co     = new tool_uploadcourse_course($mode, $updatemode, $data);
+        $co->prepare();
+        $co->proceed();
+
+        $mode       = tool_uploadcourse_processor::MODE_UPDATE_ONLY;
+        $updatemode = tool_uploadcourse_processor::UPDATE_ALL_WITH_DATA_ONLY;
+        $co         = new tool_uploadcourse_course($mode, $updatemode, $data);
+        $co->prepare();
+        $co->proceed();
+
+    }
+
     public function test_default_data_saved() {
         global $DB;
         $this->resetAfterTest(true);
