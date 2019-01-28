@@ -510,12 +510,22 @@ class manager {
                     continue;
                 }
 
+                if ($concurrentlock = static::get_concurrent_task_lock($task)) {
+                    $task->set_concurrent_task_lock($concurrentlock);
+                } else {
+                    // Unable to obtain a concurrency lock.
+                    // This task is likely running in duplicate already.
+                    $lock->release();
+                    continue;
+                }
+
                 $task->set_lock($lock);
                 if (!$task->is_blocking()) {
                     $cronlock->release();
                 } else {
                     $task->set_cron_lock($cronlock);
                 }
+
                 return $task;
             }
         }
@@ -614,13 +624,13 @@ class manager {
             $delay = 86400;
         }
 
-        $classname = self::get_canonical_class_name($task);
-
+        // Reschedule and then release the locks.
         $task->set_next_run_time(time() + $delay);
         $task->set_fail_delay($delay);
         $record = self::record_from_adhoc_task($task);
         $DB->update_record('task_adhoc', $record);
 
+        $task->release_concurrency_lock();
         if ($task->is_blocking()) {
             $task->get_cron_lock()->release();
         }
@@ -644,7 +654,8 @@ class manager {
         // Delete the adhoc task record - it is finished.
         $DB->delete_records('task_adhoc', array('id' => $task->get_id()));
 
-        // Reschedule and then release the locks.
+        // Release the locks.
+        $task->release_concurrency_lock();
         if ($task->is_blocking()) {
             $task->get_cron_lock()->release();
         }
@@ -780,5 +791,24 @@ class manager {
             $classname = '\\' . $classname;
         }
         return $classname;
+    }
+
+    /**
+     * Gets the concurrent lock required to run an adhoc task.
+     *
+     * @param   $task adhoc_task The task to obtain the lock for
+     * @return  \core\lock\lock The lock if one was obtained successfully
+     */
+    protected static function get_concurrent_task_lock(adhoc_task $task) : ?\core\lock\lock {
+        $adhoclock = null;
+        $cronlockfactory = \core\lock\lock_config::get_lock_factory(get_class($task));
+
+        for ($run = 0; $run < $task->get_concurrency_limit(); $run++) {
+            if ($adhoclock = $cronlockfactory->get_lock("concurrent_run_{$run}", 0)) {
+                return $adhoclock;
+            }
+        }
+
+        return null;
     }
 }
