@@ -275,4 +275,13 @@ class process_data_request_task extends adhoc_task {
             delete_user($foruser);
         }
     }
+
+    /**
+     * The default concurrency limit for this task.
+     *
+     * This task can have a detrimental effect to performance so we impose a lower limit.
+     */
+    protected function get_default_concurrency_limit() : int {
+        return 1;
+    }
 }
