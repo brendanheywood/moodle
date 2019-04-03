@@ -215,7 +215,9 @@ class redis extends handler {
         }
 
         // We have exhausted our retries, time to give up.
-        return false;
+        if (isset($logstring)) {
+            throw new RedisException($logstring);
+        }
     }
 
     /**
