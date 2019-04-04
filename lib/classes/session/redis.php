@@ -147,14 +147,18 @@ class redis extends handler {
 
         $this->connection = new \Redis();
 
-        $result = session_set_save_handler(array($this, 'handler_open'),
-            array($this, 'handler_close'),
-            array($this, 'handler_read'),
-            array($this, 'handler_write'),
-            array($this, 'handler_destroy'),
-            array($this, 'handler_gc'));
-        if (!$result) {
-            throw new exception('redissessionhandlerproblem', 'error');
+        if (!PHPUNIT_TEST) {
+            $result = session_set_save_handler(
+                array($this, 'handler_open'),
+                array($this, 'handler_close'),
+                array($this, 'handler_read'),
+                array($this, 'handler_write'),
+                array($this, 'handler_destroy'),
+                array($this, 'handler_gc')
+            );
+            if (!$result) {
+                throw new exception('redissessionhandlerproblem', 'error');
+            }
         }
 
         // MDL-59866: Add retries for connections (up to 5 times) to make sure it goes through.
