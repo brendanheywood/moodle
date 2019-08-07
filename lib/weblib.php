@@ -3614,6 +3614,11 @@ function print_password_policy() {
 
     $message = '';
     if (!empty($CFG->passwordpolicy)) {
+
+        if (is_string($CFG->passwordpolicy)) {
+            return $CFG->passwordpolicy;
+        }
+
         $messages = array();
         $messages[] = get_string('informminpasswordlength', 'auth', $CFG->minpasswordlength);
         if (!empty($CFG->minpassworddigits)) {
