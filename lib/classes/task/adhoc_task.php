@@ -27,6 +27,8 @@
 
 namespace core\task;
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
  * Abstract class defining an adhoc task.
  * @copyright  2013 Damyon Wiese
@@ -116,6 +118,11 @@ abstract class adhoc_task extends task_base {
      * @return  int
      */
     protected function get_default_concurrency_limit() : int {
+        global $CFG;
+
+        if (isset($CFG->default_concurrency_limit)) {
+            return (int) $CFG->default_concurrency_limit;
+        }
         return 3;
     }
 
@@ -126,7 +133,6 @@ abstract class adhoc_task extends task_base {
      */
     final public function get_concurrency_limit() : int {
         global $CFG;
-
 
         $classname = get_class($this);
         $concurrenyoverridename = "task_concurrency_limit_{$classname}";

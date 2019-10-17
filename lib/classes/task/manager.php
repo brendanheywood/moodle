@@ -472,6 +472,72 @@ class manager {
     }
 
     /**
+     * This reshuffles the adhoc tasks queue to balance by type to ensure a
+     * level of quality of service per type.
+     *
+     * For instance with the default level of per-task concurrency of 3 then
+     * the queue will have no more than 3 consecutive tasks of a certain type
+     * and the remainder will be pushed further back down the queue to allow
+     * other types of tasks to run.
+     */
+    public static function ensure_adhoc_task_qos(array $records): array {
+
+        global $CFG;
+
+        $count = count($records);
+        if ($count == 0) {
+            return $records;
+        }
+
+        $queues = []; // This holds a queue for each type of adhoc task.
+        $limits = []; // The relative limits of each type of task.
+        $limittotal = 0;
+
+        // Split the single queue up into queues per type.
+        foreach ($records as $record) {
+            $type = $record->classname;
+            if (!array_key_exists($type, $queues)) {
+                $queues[$type] = [];
+            }
+            if (!array_key_exists($type, $limits)) {
+                $task = new $type();
+                $limit = $task->get_concurrency_limit();
+                $limits[$type] = $limit;
+                $limittotal += $limit;
+            }
+            $queues[$type][] = $record;
+        }
+
+        // Now stitch the queues back together interleaving the tasks.
+        // Just shuffling the queue is not enough, because most of the time
+        // the first item in this queue is processed and then the queue is
+        // rebuilt. So we need to deterministically start on different types
+        // of tasks so that *on average* we pick up different types by the
+        // different weights. We acheive this by starting on different type
+        // based on the modulo of the count of records. As we count down this
+        // naturally cycles through each type of record.
+        $qos = []; // Our new queue with ensured quality of service.
+        $shuffled = 0;
+
+        $seed = $count % $limittotal;
+        do {
+            $shuffled = 0;
+            foreach ($limits as $type => $limit) {
+                if ($seed < $limit) {
+                    $shuffled = 1;
+                    $seed += $limit;
+                    continue;
+                }
+                $chunk = array_splice($queues[$type], 0, $limit);
+                $qos = array_merge($qos, $chunk);
+                $shuffled += count($chunk);
+            }
+        } while ($shuffled > 0);
+
+        return $qos;
+    }
+
+    /**
      * This function will dispatch the next adhoc task in the queue. The task will be handed out
      * with an open lock - possibly on the entire cron process. Make sure you call either
      * {@link adhoc_task_failed} or {@link adhoc_task_complete} to release the lock and reschedule the task.
@@ -490,6 +556,8 @@ class manager {
         $where = '(nextruntime IS NULL OR nextruntime < :timestart1)';
         $params = array('timestart1' => $timestart);
         $records = $DB->get_records_select('task_adhoc', $where, $params);
+
+        $records = self::ensure_adhoc_task_qos($records);
 
         foreach ($records as $record) {
 
