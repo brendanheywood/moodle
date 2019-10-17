@@ -44,10 +44,24 @@ class lock_testcase extends advanced_testcase {
     }
 
     /**
-     * Run a suite of tests on a lock factory.
-     * @param \core\lock\lock_factory $lockfactory - A lock factory to test
+     * Run a suite of tests on a lock factory class.
+     *
+     * @param class $lockfactoryclass - A lock factory class to test
      */
-    protected function run_on_lock_factory(\core\lock\lock_factory $lockfactory) {
+    protected function run_on_lock_factory($lockfactoryclass) {
+
+        $lockfactory = new $lockfactoryclass('mod_assign');
+        $lockfactory2 = new $lockfactoryclass('tool_task');
+
+        // Test for lock clashes between lock types.
+        $lock1 = $lockfactory->get_lock('abc1', 0);
+        $this->assertNotEmpty($lock1, 'Get a lock "abc" from store "type1"');
+
+        $lock2 = $lockfactory2->get_lock('abc1', 0);
+        $this->assertNotEmpty($lock2, 'Get a lock "abc" from store "type2"');
+
+        $lock1->release();
+        $lock2->release();
 
         if ($lockfactory->is_available()) {
             // This should work.
@@ -111,20 +125,16 @@ class lock_testcase extends advanced_testcase {
     }
 
     /**
-     * Tests the testable lock factories.
+     * Tests the testable lock factories classes.
      * @return void
      */
     public function test_locks() {
         // Run the suite on the current configured default (may be non-core).
-        $defaultfactory = \core\lock\lock_config::get_lock_factory('default');
-        $this->run_on_lock_factory($defaultfactory);
+        $this->run_on_lock_factory(\core\lock\lock_config::get_lock_factory_class());
 
         // Manually create the core no-configuration factories.
-        $dblockfactory = new \core\lock\db_record_lock_factory('test');
-        $this->run_on_lock_factory($dblockfactory);
-
-        $filelockfactory = new \core\lock\file_lock_factory('test');
-        $this->run_on_lock_factory($filelockfactory);
+        $this->run_on_lock_factory(\core\lock\db_record_lock_factory::class);
+        $this->run_on_lock_factory(\core\lock\file_lock_factory::class);
 
     }
 
