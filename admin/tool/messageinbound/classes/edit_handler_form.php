@@ -109,7 +109,7 @@ class tool_messageinbound_edit_handler_form extends moodleform {
                 $text = get_string('no');
             }
             $mform->addElement('static', 'enabled_fake', get_string('enabled', 'tool_messageinbound'), $text);
-            $mform->addHelpButton('enabled', 'fixedenabled', 'tool_messageinbound');
+            $mform->addHelpButton('enabled_fake', 'fixedenabled', 'tool_messageinbound');
             $mform->addElement('hidden', 'enabled');
             $mform->setType('enabled', PARAM_INT);
         }

@@ -74,8 +74,37 @@ if ($hassiteconfig) {
             new lang_string('messageinboundhostpass', 'tool_messageinbound'),
             new lang_string('messageinboundhostpass_desc', 'tool_messageinbound'), ''));
 
+    // These settings are used when checking the incoming mailbox for mail.
+    $settings->add(new admin_setting_heading('messageinbound_bouncesettings',
+            new lang_string('incomingmailbouncesettings', 'tool_messageinbound'),
+            new lang_string('incomingmailbouncesettings_desc', 'tool_messageinbound'), ''));
+
+    $settings->add(new admin_setting_configcheckbox('messageinbound_handlebounces',
+            new lang_string('messageinboundbouncesenabled', 'tool_messageinbound'),
+            new lang_string('messageinboundbouncesenabled_desc', 'tool_messageinbound'), 0));
+
+    $options = array(1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5, 10 => 10, 15 => 15, 20 => 20);
+    $settings->add(new admin_setting_configselect('messageinbound_minbounces',
+            new lang_string('messageinboundbouncemin', 'tool_messageinbound'),
+            new lang_string('messageinboundbouncemin_desc', 'tool_messageinbound'), '10', $options, PARAM_INT));
+
+    $options = array(
+        '.00' => '0%',
+        '.01' => '1%',
+        '.02' => '2%',
+        '.05' => '5%',
+        '.1' => '10%',
+        '.2' => '20%',
+    );
+    $settings->add(new admin_setting_configselect('messageinbound_bounceratio',
+            new lang_string('messageinboundbounceratio', 'tool_messageinbound'),
+            new lang_string('messageinboundbounceratio_desc', 'tool_messageinbound'), '.2', $options, PARAM_FLOAT));
+
+    $category->add('messageinbound', $settings);
+
     // Add the category to the admin tree.
     $ADMIN->add('email', $settings);
+
     // Link to the external page for Inbound Message handler configuration.
     $ADMIN->add('email', new admin_externalpage('messageinbound_handlers',
             new lang_string('message_handlers', 'tool_messageinbound'),

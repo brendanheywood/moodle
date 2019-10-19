@@ -30,4 +30,9 @@ $handlers = array(
         'enabled'           => true,
         'validateaddress'   => false,
     ),
+    array(
+        'classname'         => '\tool_messageinbound\message\inbound\bounce_handler',
+        'enabled'           => true,
+        'validateaddress'   => false,
+    ),
 );

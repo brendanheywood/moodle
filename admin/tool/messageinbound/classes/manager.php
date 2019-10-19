@@ -587,6 +587,16 @@ class manager {
         $htmlpartid = $structure->findBody('html');
 
         foreach ($typemap as $part => $type) {
+
+            if ($type == 'multipart/report' || $type == 'message/delivery-status') {
+                // Ignore any email parts with these mimtypes as they are only
+                // used for bounce messages and we do not need to know the
+                // contents of the message body, the custom return path contains
+                // everything we need and fetching the contents below costs
+                // an extra IMAP network call.
+                continue;
+            }
+
             // Get the message data from the body part, and combine it with the structure to give a fully-formed output.
             $stream = $messagedata->getBodyPart($part, true);
             $partdata = $structure->getPart($part);
@@ -823,6 +833,25 @@ class manager {
         // If the Auto-Submitted header is set, and not 'no', then this is a non-human response.
         $autosubmitted = $messagedata->getHeaderText(0, \Horde_Imap_Client_Data_Fetch::HEADER_PARSE)->getValue('Auto-Submitted');
         $isbulk = $isbulk || ($autosubmitted && $autosubmitted != 'no');
+
+        $returnpath = $messagedata->getHeaderText(0, \Horde_Imap_Client_Data_Fetch::HEADER_PARSE)->getValue('Return-Path');
+        if ($isbulk && $returnpath == '<>') {
+
+            // Bounce emails aka Delivery Status Notification (DSN) look like
+            // bulk email, but if it has a null return path and contains a
+            // message/delivery-status chunk let it pass and be processed by
+            // the bounce handler. This takes network time and data so we want
+            // to only call it if mostly sure to confirm it is a bounce email.
+            $query = new \Horde_Imap_Client_Fetch_Query();
+            $query->structure();
+            $messagedata = $this->client->fetch($this->get_mailbox(), $query, array('ids' => $messageid))->first();
+
+            $structure = $messagedata->getStructure();
+            $typemap = $structure->contentTypeMap();
+            if (in_array('message/delivery-status', $typemap)) {
+                return false;
+            }
+        }
 
         return $isbulk;
     }

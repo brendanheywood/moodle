@@ -1483,6 +1483,141 @@ class core_moodlelib_testcase extends advanced_testcase {
         }
     }
 
+    /**
+     * Data provider for test_send_and_bounce_count
+     *
+     * @return array
+     */
+    public function send_and_bounce_count_provider() {
+        return array(
+            array(
+                'emails' => '',
+                'minbounces' => 5,
+                'bounceratio' => .2,
+                'expected' => array(
+                    'sent' => 0,
+                    'bounced' => 0,
+                    'flagged' => false,
+                ),
+            ),
+            array(
+                'emails' => 'sbsbsr',
+                'minbounces' => 5,
+                'bounceratio' => .2,
+                'expected' => array(
+                    'sent' => 0,
+                    'bounced' => 0,
+                    'flagged' => false,
+                ),
+            ),
+            array(
+                'emails' => 'sbsbsrssssb',
+                'minbounces' => 5,
+                'bounceratio' => .2,
+                'expected' => array(
+                    'sent' => 5,
+                    'bounced' => 1,
+                    'flagged' => false,
+                ),
+            ),
+            array(
+                'emails' => 'sssss',
+                'minbounces' => 5,
+                'bounceratio' => .2,
+                'expected' => array(
+                    'sent' => 5,
+                    'bounced' => 0,
+                    'flagged' => false,
+                ),
+            ),
+            array(
+                'emails' => 'sbsss',
+                'minbounces' => 1,
+                'bounceratio' => .4,
+                'expected' => array(
+                    'sent' => 5,
+                    'bounced' => 1,
+                    'flagged' => false,
+                ),
+            ),
+            array(
+                'emails' => 'sbsbs',
+                'minbounces' => 1,
+                'bounceratio' => .4,
+                'expected' => array(
+                    'sent' => 5,
+                    'bounced' => 2,
+                    'flagged' => true,
+                ),
+            ),
+            array(
+                'emails' => 'sssbb',
+                'minbounces' => 3,
+                'bounceratio' => .01,
+                'expected' => array(
+                    'sent' => 5,
+                    'bounced' => 2,
+                    'flagged' => false,
+                ),
+            ),
+            array(
+                'emails' => 'ssbbb',
+                'minbounces' => 3,
+                'bounceratio' => .01,
+                'expected' => array(
+                    'sent' => 5,
+                    'bounced' => 3,
+                    'flagged' => true,
+                ),
+            ),
+        );
+    }
+
+    /**
+     * Test bounce settings
+     * @dataProvider send_and_bounce_count_provider
+     * @param string  $emails a string containing 's'end, 'b'ounce, or 'r'eset simulating
+     *                a history of emails
+     * @param integer $minbounces Max bounce threshold
+     * @param float   $bounceratio Max bounce percentage threshold
+     */
+    public function test_send_and_bounce_count($emails, $minbounces, $bounceratio, $expected) {
+        global $CFG;
+
+        $this->resetAfterTest();
+        $user = $this->getDataGenerator()->create_user();
+        $this->setUser(0);
+
+        $sent = 0;
+        $bounced = 0;
+
+        // Simulate a history of various emails being sent, bouncing, and the
+        // counts being reset.
+        $history = str_split($emails);
+        foreach($history as $event) {
+            switch ($event) {
+                case 'b';
+                    $bounced = set_bounce_count($user);
+                case 's';
+                    $sent = set_send_count($user);
+                    break;
+                case 'r';
+                    $bounced = set_bounce_count($user, true);
+                    $sent = set_send_count($user, true);
+            }
+        }
+
+        $CFG->messageinbound_handlebounces = true;
+        $CFG->messageinbound_minbounces = $minbounces;
+        $CFG->messageinbound_bounceratio = $bounceratio;
+
+        $flagged = over_bounce_threshold($user);
+        $this->assertEquals($expected['sent'], $sent);
+        $this->assertEquals($expected['bounced'], $bounced);
+        $this->assertEquals($expected['flagged'], $flagged);
+
+    }
+
     public function test_set_user_preference_for_current_user() {
         global $USER;
         $this->resetAfterTest();
