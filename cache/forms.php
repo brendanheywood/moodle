@@ -329,18 +329,37 @@ class cache_lock_form extends moodleform {
      * Defines this form.
      */
     final public function definition() {
-        $plugin = $this->_customdata['lock'];
+        $plugin = $this->_customdata['plugin'];
+        $lock = $this->_customdata['lock'];
 
-        $this->_form->addElement('hidden', 'action', 'newlockinstance');
+        if ($lock) {
+            $this->_form->addElement('hidden', 'action', 'editlock');
+        } else {
+            $this->_form->addElement('hidden', 'action', 'addlockinstance');
+        }
         $this->_form->setType('action', PARAM_ALPHANUMEXT);
-        $this->_form->addElement('hidden', 'lock', $plugin);
-        $this->_form->setType('lock', PARAM_COMPONENT);
-        $this->_form->addElement('text', 'name', get_string('lockname', 'cache'));
-        $this->_form->setType('name', PARAM_ALPHANUMEXT);
-        $this->_form->addRule('name', get_string('required'), 'required');
-        $this->_form->addElement('static', 'namedesc', '', get_string('locknamedesc', 'cache'));
+        $this->_form->addElement('hidden', 'plugin', $plugin);
+        $this->_form->setType('plugin', PARAM_COMPONENT);
+        $this->_form->addElement('hidden', 'editing', !empty($this->_customdata['lock']));
+        $this->_form->setType('editing', PARAM_BOOL);
+
+
+        if (!$lock) {
+            $this->_form->addElement('text', 'name', get_string('lockname', 'cache'));
+            $this->_form->addHelpButton('name', 'lockname', 'cache');
+            $this->_form->addRule('name', get_string('required'), 'required');
+            $this->_form->setType('name', PARAM_NOTAGS);
+        } else {
+            $this->_form->addElement('hidden', 'name', $lock);
+            $this->_form->addElement('static', 'name-value', get_string('lockname', 'cache'), $lock);
+            $this->_form->setType('name', PARAM_NOTAGS);
+        }
 
         $this->plugin_definition();
+        if (method_exists($this, 'configuration_definition')) {
+            $this->_form->addElement('header', 'lockconfiguration', get_string('lockconfiguration', 'cache'));
+            $this->configuration_definition();
+        }
 
         $this->add_action_buttons();
     }
@@ -356,8 +375,10 @@ class cache_lock_form extends moodleform {
         $errors = parent::validation($data, $files);
         if (!isset($errors['name'])) {
             $config = cache_config::instance();
-            if (in_array($data['name'], array_keys($config->get_locks()))) {
+            
+            if (!$data['editing'] && in_array($data['name'], array_keys($config->get_locks()))) {
                 $errors['name'] = get_string('locknamenotunique', 'cache');
+
             }
         }
         $errors = $this->plugin_validation($data, $files, $errors);

@@ -257,6 +257,34 @@ if (!empty($action) && confirm_sesskey()) {
                 redirect($PAGE->url, get_string('addlocksuccess', 'cache', $name), 5);
             }
             break;
+
+        case 'editlock' : // Edit the requested store.
+            $lock = required_param('lock', PARAM_ALPHANUMEXT);
+            $plugin = required_param('plugin', PARAM_PLUGIN);
+
+// e($locks);
+// e($lock);
+            $mform = cache_administration_helper::get_edit_lock_form($plugin, $lock);
+            $title = get_string('editlock', 'cache', $storepluginsummaries[$plugin]['name']);
+            if ($mform->is_cancelled()) {
+                redirect($PAGE->url);
+            } else if ($data = $mform->get_data()) {
+
+e('crap');
+exit;
+                // $config = cache_administration_helper::get_store_configuration_from_data($data);
+                // $writer = cache_config_writer::instance();
+
+                // unset($config['lock']);
+                // foreach ($writer->get_locks() as $lock => $lockconfig) {
+                //     if ($lock == $data->lock) {
+                //         $config['lock'] = $data->lock;
+                //     }
+                // }
+                // $writer->edit_lock_instance($data->name, $data->plugin, $config);
+                redirect($PAGE->url, get_string('editlocksuccess', 'cache', $storepluginsummaries[$plugin]['name']), 5);
+            }
+            break;
         case 'deletelock':
             // Deletes a lock instance.
             $lock = required_param('lock', PARAM_ALPHANUMEXT);

@@ -366,16 +366,20 @@ class core_cache_renderer extends plugin_renderer_base {
         $tick = $this->output->pix_icon('i/valid', '');
         foreach ($locks as $lock) {
             $actions = array();
+            if (!$lock['default']) {
+                $url = new moodle_url('/cache/admin.php', array('lock' => $lock['name'], 'plugin' => $lock['plugin'], 'action' => 'editlock', 'sesskey' => sesskey()));
+                $actions[] = html_writer::link($url, get_string('editlock', 'cache'));
+            }
             if ($lock['uses'] === 0 && !$lock['default']) {
                 $url = new moodle_url('/cache/admin.php', array('lock' => $lock['name'], 'action' => 'deletelock', 'sesskey' => sesskey()));
-                $actions[] = html_writer::link($url, get_string('delete', 'cache'));
+                $actions[] = html_writer::link($url, get_string('deletelock', 'cache'));
             }
             $table->data[] = new html_table_row(array(
                 new html_table_cell($lock['name']),
                 new html_table_cell($lock['type']),
                 new html_table_cell($lock['default'] ? $tick : ''),
                 new html_table_cell($lock['uses']),
-                new html_table_cell(join(' ', $actions))
+                new html_table_cell(join(', ', $actions))
             ));
         }
 

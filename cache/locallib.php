@@ -1008,6 +1008,7 @@ abstract class cache_administration_helper extends cache_helper {
         // If it has a customised add instance form then it is going to want to.
         $storeclass = 'cachestore_'.$plugin;
         $storedata = $stores[$store];
+
         if (array_key_exists('configuration', $storedata) && array_key_exists('cache_is_configurable', class_implements($storeclass))) {
             $storeclass::config_set_edit_form_data($editform, $storedata['configuration']);
         }
@@ -1171,6 +1172,7 @@ abstract class cache_administration_helper extends cache_helper {
                 'name' => $name,
                 'default' => $default,
                 'uses' => $uses,
+                'plugin' => substr($lock['type'],10),
                 'type' => get_string('pluginname', $lock['type'])
             );
             $locks[$lock['name']] = $lockdata;
@@ -1204,11 +1206,10 @@ abstract class cache_administration_helper extends cache_helper {
      * Gets the form to use when adding a lock instance.
      *
      * @param string $plugin
-     * @param array $lockplugin
      * @return cache_lock_form
      * @throws coding_exception
      */
-    public static function get_add_lock_form($plugin, array $lockplugin = null) {
+    public static function get_add_lock_form($plugin) {
         global $CFG; // Needed for includes.
         $plugins = core_component::get_plugin_list('cachelock');
         if (!array_key_exists($plugin, $plugins)) {
@@ -1216,7 +1217,7 @@ abstract class cache_administration_helper extends cache_helper {
         }
         $plugindir = $plugins[$plugin];
         $class = 'cache_lock_form';
-        if (file_exists($plugindir.'/addinstanceform.php') && in_array('cache_is_configurable', class_implements($class))) {
+        if (file_exists($plugindir.'/addinstanceform.php') ){
             require_once($plugindir.'/addinstanceform.php');
             if (class_exists('cachelock_'.$plugin.'_addinstance_form')) {
                 $class = 'cachelock_'.$plugin.'_addinstance_form';
@@ -1225,7 +1226,51 @@ abstract class cache_administration_helper extends cache_helper {
                 }
             }
         }
-        return new $class(null, array('lock' => $plugin));
+        return new $class(null, array('plugin' => $plugin, 'lock' => false));
+    }
+
+    /**
+     * Returns a form that can be used to edit a lock instance.
+     *
+     * @param string $plugin
+     * @param string $lock
+     * @return cachestore_addinstance_form
+     * @throws coding_exception
+     */
+    public static function get_edit_lock_form(string $plugin, string $lock) {
+        global $CFG; // Needed for includes.
+        $plugins = core_component::get_plugin_list('cachelock');
+        if (!array_key_exists($plugin, $plugins)) {
+            throw new coding_exception('Invalid cache lock plugin requested when trying to create a form.');
+        }
+        $plugindir = $plugins[$plugin];
+        $class = 'cache_lock_form';
+        if (file_exists($plugindir . '/addinstanceform.php') ){
+            require_once($plugindir . '/addinstanceform.php');
+            if (class_exists('cachelock_' . $plugin . '_addinstance_form')) {
+                $class = 'cachelock_' . $plugin . '_addinstance_form';
+                if (!array_key_exists('cache_lock_form', class_parents($class))) {
+                    throw new coding_exception('Cache lock plugin add instance forms must extend cache_lock_form');
+                }
+            }
+        }
+        $editform = new $class(null, array('plugin' => $plugin, 'lock' => $lock));
+
+
+        $factory = cache_factory::instance();
+        $config = $factory->create_config_instance();
+        $locks = $config->get_locks();
+
+        // See if the cachelock is going to want to load data for the form.
+        // If it has a customised add instance form then it is going to want to.
+        $lockclass = 'cachelock_' . $plugin;
+        $lockdata = $locks[$lock];
+        require_once($plugindir . '/lib.php');
+
+        if (array_key_exists('cache_is_configurable', class_implements($lockclass))) {
+            $lockclass::config_set_edit_form_data($editform, $lockdata);
+        }
+        return $editform;
     }
 
     /**

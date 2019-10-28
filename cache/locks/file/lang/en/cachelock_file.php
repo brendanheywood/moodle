@@ -25,3 +25,10 @@
 
 $string['pluginname'] = 'File locking';
 $string['privacy:metadata'] = 'The File locking plugin does not store any personal data.';
+$string['dir'] = 'Lock directory';
+$string['dir_help'] = 'Lock directory';
+$string['maxlife'] = 'Max life';
+$string['maxlife_help'] = 'Max life';
+$string['blockattempts'] = 'Block attempts';
+$string['blockattempts_help'] = 'blah blah';
+

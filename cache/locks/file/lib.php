@@ -31,7 +31,7 @@ defined('MOODLE_INTERNAL') || die();
  * @copyright  2012 Sam Hemelryk
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class cachelock_file implements cache_lock_interface {
+class cachelock_file implements cache_lock_interface, cache_is_configurable {
 
     /**
      * The name of the cache lock instance
@@ -71,6 +71,7 @@ class cachelock_file implements cache_lock_interface {
      */
     public function __construct($name, array $configuration = array()) {
         $this->name = $name;
+
         if (!array_key_exists('dir', $configuration)) {
             $this->cachedir = make_cache_directory(md5($name));
         } else {
@@ -234,4 +235,36 @@ class cachelock_file implements cache_lock_interface {
             @unlink($lockfile);
         }
     }
+
+    /**
+     * Creates a configuration array from given 'add instance' form data.
+     *
+     * @see cache_is_configurable
+     * @param stdClass $data
+     * @return array
+     */
+    public static function config_get_configuration_array($data) {
+        return array(
+            'dir' => $data->dir,
+            'maxlife' => $data->maxlife,
+            'blockattempts' => $data->blockattempts,
+        );
+    }
+
+    /**
+     * Sets form data from a configuration array.
+     *
+     * @see cache_is_configurable
+     * @param moodleform $editform
+     * @param array $config
+     */
+    public static function config_set_edit_form_data(moodleform $editform, array $config) {
+        $data = array();
+        $data['dir'] = $config['dir'];
+        $data['maxlife'] = $config['maxlife'];
+        $data['blockattempts'] = $config['blockattempts'];
+        $editform->set_data($data);
+    }
+
 }
+
