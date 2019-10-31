@@ -15,19 +15,23 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Strings for component 'license', language 'en', branch 'MOODLE_20_STABLE'
+ * Settings for 'tool_licenses' component.
  *
- * @package   core
- * @copyright 1999 onwards Martin Dougiamas  {@link http://moodle.com}
+ * @package   tool_licenses
+ * @copyright 2019 Tom Dickman <tomdickman@catalyst-au.net>
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['allrightsreserved'] = 'All rights reserved';
-$string['cc'] = 'Creative Commons';
-$string['cc-nc'] = 'Creative Commons - No Commercial';
-$string['cc-nc-nd'] = 'Creative Commons - No Commercial NoDerivs';
-$string['cc-nc-sa'] = 'Creative Commons - No Commercial ShareAlike';
-$string['cc-nd'] = 'Creative Commons - NoDerivs';
-$string['cc-sa'] = 'Creative Commons - ShareAlike';
-$string['public'] = 'Public domain';
-$string['unknown'] = 'Unknown';
+defined('MOODLE_INTERNAL') || die;
+
+
+if ($hassiteconfig) {
+
+    $licensemanager = new admin_externalpage(
+        'tool_licenses/manager',
+        get_string('managelicenses', 'tool_licenses'),
+        new moodle_url('/admin/tool/licenses/manager.php')
+    );
+
+    $ADMIN->add('licensesettings', $licensemanager);
+}

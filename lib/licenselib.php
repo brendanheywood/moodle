@@ -29,6 +29,27 @@
 defined('MOODLE_INTERNAL') || die();
 
 class license_manager {
+
+    /**
+     * License is a core license and can not be updated or deleted.
+     */
+    const CORE_LICENSE = 0;
+
+    /**
+     * License is a custom license and can be updated and/or deleted.
+     */
+    const CUSTOM_LICENSE = 1;
+
+    /**
+     * Integer representation of boolean for a license that is enabled.
+     */
+    const LICENSE_ENABLED = 1;
+
+    /**
+     * Integer representation of boolean for a license that is disabled.
+     */
+    const LICENSE_DISABLED = 0;
+
     /**
      * Adding a new license type
      * @param object $license {
@@ -37,21 +58,24 @@ class license_manager {
      *            source => string the homepage of the license type[required]
      *            enabled => int is it enabled?
      *            version  => int a version number used by moodle [required]
+     *            custom => int is this a custom license?
      * }
      */
     static public function add($license) {
         global $DB;
         if ($record = $DB->get_record('license', array('shortname'=>$license->shortname))) {
             // record exists
-            if ($record->version < $license->version) {
-                // update license record
-                $license->enabled = $record->enabled;
-                $license->id = $record->id;
-                $DB->update_record('license', $license);
-            }
+            $license->enabled = $record->enabled;
+            $license->id = $record->id;
+            $DB->update_record('license', $license);
         } else {
             $DB->insert_record('license', $license);
         }
+        // Add the new license to the end of priority order for licenses.
+        $licensepriority = explode(',', get_config('', 'licensepriority'));
+        $licensepriority[] = $license->shortname;
+        set_config('licensepriority', implode(',', $licensepriority));
+
         return true;
     }
 
@@ -71,6 +95,44 @@ class license_manager {
         } else {
             return array();
         }
+    }
+
+    /**
+     * Get all installed licenses in order of priority.
+     *
+     * @return array $result of license objects.
+     */
+    static public function get_licenses_in_priority_order() {
+        $result = [];
+        $licenses = self::get_licenses();
+
+        $order = explode(',', get_config('', 'licensepriority'));
+
+        foreach ($order as $licensename) {
+            foreach ($licenses as $key => $license) {
+                if ($licensename == $license->shortname) {
+                    $result[$key] = $license;
+                }
+            }
+        }
+
+        // We shouldn't get here as priority is added on install and at license creation,
+        // but just in case, check for any licenses not in the global licensepriority config,
+        // add them to the results and update config to include them.
+        $remaininglicensekeys = array_diff(array_keys($licenses), array_keys($result));
+        if ($remaininglicensekeys) {
+
+            $licensepriority = explode(',', get_config('', 'licensepriority'));
+
+            foreach ($remaininglicensekeys as $key) {
+                $result[$key] = $licenses[$key];
+                $licensepriority[] = $licenses[$key]->shortname;
+            }
+
+            set_config('licensepriority', implode(',', $licensepriority));
+        }
+
+        return $result;
     }
 
     /**
@@ -95,7 +157,7 @@ class license_manager {
     static public function enable($license) {
         global $DB;
         if ($license = self::get_license_by_shortname($license)) {
-            $license->enabled = 1;
+            $license->enabled = self::LICENSE_ENABLED;
             $DB->update_record('license', $license);
         }
         self::set_active_licenses();
@@ -114,7 +176,7 @@ class license_manager {
             print_error('error');
         }
         if ($license = self::get_license_by_shortname($license)) {
-            $license->enabled = 0;
+            $license->enabled = self::LICENSE_DISABLED;
             $DB->update_record('license', $license);
         }
         self::set_active_licenses();
@@ -122,7 +184,26 @@ class license_manager {
     }
 
     /**
-     * Store active licenses in global $CFG
+     * Delete a custom license.
+     *
+     * @param string $licenseshortname the shortname of license.
+     */
+    static public function delete($licenseshortname) {
+        global $DB;
+
+        if ($license = self::get_license_by_shortname($licenseshortname)) {
+            if ($license->custom == self::CUSTOM_LICENSE) {
+                $DB->delete_records('license', ['id' => $license->id]);
+            } else {
+                print_error('licensecantdeletecore', 'error');
+            }
+        } else {
+            print_error('licensenotfoundshortname', 'error', '', $licenseshortname);
+        }
+    }
+
+    /**
+     * Store active licenses in global $CFG.
      */
     static private function set_active_licenses() {
         // set to global $CFG
@@ -135,85 +216,140 @@ class license_manager {
     }
 
     /**
+     * Get the globally configured active licenses.
+     *
+     * @return array of license objects.
+     * @throws \coding_exception
+     */
+    static public function get_active_licenses() {
+        global $CFG;
+
+        $result = [];
+
+        if (!empty($CFG->licenses)) {
+            $activelicenses = explode(',', $CFG->licenses);
+            $licenses = self::get_licenses();
+            foreach ($licenses as $license) {
+                if (in_array($license->shortname, $activelicenses)) {
+                    // Interpret core license strings for internationalisation.
+                    if ($license->custom == self::CORE_LICENSE) {
+                        $license->fullname = get_string($license->shortname, 'license');
+                    }
+                    $result[] = $license;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get the globally configured active licenses as an array.
+     *
+     * @return array $licenses an associative array of licenses shaped as ['shortname' => 'fullname']
+     */
+    static public function get_active_licenses_as_array() {
+        $activelicense = self::get_active_licenses();
+
+        $licenses = [];
+        foreach ($activelicense as $license) {
+            $licenses[$license->shortname] = $license->fullname;
+        }
+
+        return $licenses;
+    }
+
+    /**
      * Install moodle build-in licenses
      */
     static public function install_licenses() {
-        $active_licenses = array();
+        $activelicenses = array();
 
         $license = new stdClass();
 
         $license->shortname = 'unknown';
         $license->fullname = 'Unknown license';
         $license->source = '';
-        $license->enabled = 1;
+        $license->enabled = self::LICENSE_ENABLED;
         $license->version = '2010033100';
-        $active_licenses[] = $license->shortname;
+        $license->custom = self::CORE_LICENSE;
+        $activelicenses[] = $license->shortname;
         self::add($license);
 
         $license->shortname = 'allrightsreserved';
         $license->fullname = 'All rights reserved';
-        $license->source = 'http://en.wikipedia.org/wiki/All_rights_reserved';
-        $license->enabled = 1;
+        $license->source = 'https://en.wikipedia.org/wiki/All_rights_reserved';
+        $license->enabled = self::LICENSE_ENABLED;
         $license->version = '2010033100';
-        $active_licenses[] = $license->shortname;
+        $license->custom = self::CORE_LICENSE;
+        $activelicenses[] = $license->shortname;
         self::add($license);
 
         $license->shortname = 'public';
         $license->fullname = 'Public Domain';
-        $license->source = 'http://creativecommons.org/licenses/publicdomain/';
-        $license->enabled = 1;
+        $license->source = 'https://en.wikipedia.org/wiki/Public_domain';
+        $license->enabled = self::LICENSE_ENABLED;
         $license->version = '2010033100';
-        $active_licenses[] = $license->shortname;
+        $license->custom = self::CORE_LICENSE;
+        $activelicenses[] = $license->shortname;
         self::add($license);
 
         $license->shortname = 'cc';
         $license->fullname = 'Creative Commons';
-        $license->source = 'http://creativecommons.org/licenses/by/3.0/';
-        $license->enabled = 1;
+        $license->source = 'https://creativecommons.org/licenses/by/3.0/';
+        $license->enabled = self::LICENSE_ENABLED;
         $license->version = '2010033100';
-        $active_licenses[] = $license->shortname;
+        $license->custom = self::CORE_LICENSE;
+        $activelicenses[] = $license->shortname;
         self::add($license);
 
         $license->shortname = 'cc-nd';
         $license->fullname = 'Creative Commons - NoDerivs';
-        $license->source = 'http://creativecommons.org/licenses/by-nd/3.0/';
-        $license->enabled = 1;
+        $license->source = 'https://creativecommons.org/licenses/by-nd/3.0/';
+        $license->enabled = self::LICENSE_ENABLED;
         $license->version = '2010033100';
-        $active_licenses[] = $license->shortname;
+        $license->custom = self::CORE_LICENSE;
+        $activelicenses[] = $license->shortname;
         self::add($license);
 
         $license->shortname = 'cc-nc-nd';
         $license->fullname = 'Creative Commons - No Commercial NoDerivs';
-        $license->source = 'http://creativecommons.org/licenses/by-nc-nd/3.0/';
-        $license->enabled = 1;
+        $license->source = 'https://creativecommons.org/licenses/by-nc-nd/3.0/';
+        $license->enabled = self::LICENSE_ENABLED;
         $license->version = '2010033100';
-        $active_licenses[] = $license->shortname;
+        $license->custom = self::CORE_LICENSE;
+        $activelicenses[] = $license->shortname;
         self::add($license);
 
         $license->shortname = 'cc-nc';
         $license->fullname = 'Creative Commons - No Commercial';
-        $license->source = 'http://creativecommons.org/licenses/by-nc/3.0/';
-        $license->enabled = 1;
-        $license->version = '2013051500';
-        $active_licenses[] = $license->shortname;
+        $license->source = 'https://creativecommons.org/licenses/by-nc/3.0/';
+        $license->enabled = self::LICENSE_ENABLED;
+        $license->version = '2010033100';
+        $license->custom = self::CORE_LICENSE;
+        $activelicenses[] = $license->shortname;
         self::add($license);
 
         $license->shortname = 'cc-nc-sa';
         $license->fullname = 'Creative Commons - No Commercial ShareAlike';
-        $license->source = 'http://creativecommons.org/licenses/by-nc-sa/3.0/';
-        $license->enabled = 1;
+        $license->source = 'https://creativecommons.org/licenses/by-nc-sa/3.0/';
+        $license->enabled = self::LICENSE_ENABLED;
         $license->version = '2010033100';
-        $active_licenses[] = $license->shortname;
+        $license->custom = self::CORE_LICENSE;
+        $activelicenses[] = $license->shortname;
         self::add($license);
 
         $license->shortname = 'cc-sa';
         $license->fullname = 'Creative Commons - ShareAlike';
-        $license->source = 'http://creativecommons.org/licenses/by-sa/3.0/';
-        $license->enabled = 1;
+        $license->source = 'https://creativecommons.org/licenses/by-sa/3.0/';
+        $license->enabled = self::LICENSE_ENABLED;
         $license->version = '2010033100';
-        $active_licenses[] = $license->shortname;
+        $license->custom = self::CORE_LICENSE;
+        $activelicenses[] = $license->shortname;
         self::add($license);
 
-        set_config('licenses', implode(',', $active_licenses));
+        set_config('licenses', implode(',', $activelicenses));
+        set_config('licensepriority', implode(',', $activelicenses));
+        set_config('sitedefaultlicense', reset($activelicenses));
     }
 }

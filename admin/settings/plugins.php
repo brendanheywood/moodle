@@ -183,17 +183,12 @@ if ($hassiteconfig) {
     }
 
 /// License types
-    $ADMIN->add('modules', new admin_category('licensesettings', new lang_string('licenses')));
-    $temp = new admin_settingpage('managelicenses', new lang_string('managelicenses', 'admin'));
+    $ADMIN->add('root', new admin_category('licensesettings', new lang_string('licenses')));
+    $temp = new admin_settingpage('managesitedefaultlicense', new lang_string('managesitedefaultlicense', 'admin'));
 
     require_once($CFG->libdir . '/licenselib.php');
-    $licenses = array();
-    $array = explode(',', $CFG->licenses);
-    foreach ($array as $value) {
-        $licenses[$value] = new lang_string($value, 'license');
-    }
+    $licenses = license_manager::get_active_licenses_as_array();
     $temp->add(new admin_setting_configselect('sitedefaultlicense', new lang_string('configsitedefaultlicense','admin'), new lang_string('configsitedefaultlicensehelp','admin'), 'allrightsreserved', $licenses));
-    $temp->add(new admin_setting_managelicenses());
     $ADMIN->add('licensesettings', $temp);
 
 /// Filter plugins
