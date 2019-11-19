@@ -220,14 +220,21 @@ class manager {
 
         $table = new html_table();
         $table->head  = array(
-            get_string('up') .  '/' . get_string('down'),
-            get_string('shortname', 'tool_licenses'),
-            get_string('fullname', 'tool_licenses'),
+            get_string('enable'),
+            get_string('licenses', 'tool_licenses'),
             get_string('version', 'tool_licenses'),
-            get_string('source', 'tool_licenses'),
-            get_string('enable'), get_string('edit'), get_string('delete')
+            get_string('order'),
+            get_string('edit'),
+            get_string('delete'),
         );
-        $table->colclasses = array('text-center', 'text-left', 'text-left', 'text-left', 'text-left', 'text-center', 'text-center', 'text-center');
+        $table->colclasses = array(
+            'text-center',
+            'text-left',
+            'text-left',
+            'text-center',
+            'text-center',
+            'text-center',
+        );
         $table->id = 'availablelicenses';
         $table->attributes['class'] = 'admintable generaltable';
         $table->data  = array();
@@ -307,6 +314,8 @@ class manager {
 
         $source = html_writer::link($license->source, $license->source, ['target' => '_blank']);
 
+        $summary = $license->fullname . ' ('. $license->shortname . ')<br>' . $source;
+
         if ($license->shortname == $CFG->sitedefaultlicense) {
             $source .= ' ' . $renderer->pix_icon('t/locked', get_string('default'));
             $hideshow = $renderer->pix_icon('t/locked', get_string('default'));
@@ -325,14 +334,14 @@ class manager {
                 $editlicense = html_writer::link(helper::get_update_license_url($license->shortname),
                     $renderer->pix_icon('t/editinline', get_string('edit')));
             } else {
-                $editlicense = $renderer->pix_icon('t/block', get_string('editlock'));
+                $editlicense = '';
             }
 
             if ($license->custom == license_manager::CUSTOM_LICENSE) {
                 $deletelicense = html_writer::link(helper::get_delete_license_url($license->shortname),
                     $renderer->pix_icon('i/trash', get_string('delete')));
             } else {
-                $deletelicense = $renderer->pix_icon('t/block', get_string('editlock'));
+                $deletelicense = '';
             }
         }
 
@@ -351,8 +360,8 @@ class manager {
         } else {
             $updown .= $spacer;
         }
-        
-        return [$updown, $license->shortname, $license->fullname, $license->version ,$source, $hideshow, $editlicense, $deletelicense];
+
+        return [$hideshow, $summary, $license->version, $updown, $editlicense, $deletelicense];
     }
 
 }
