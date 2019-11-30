@@ -4506,6 +4506,10 @@ function authenticate_user_login($username, $password, $ignorelockout=false, &$f
             continue;
         }
 
+            // $event = \core\event\user_login_failed::create(array('other' => array('username' => $username,
+            //         'reason' => $failurereason)));
+            // $event->trigger();
+
         // Successful authentication.
         if ($user->id) {
             // User already exists in database.
