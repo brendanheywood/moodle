@@ -17,8 +17,7 @@
 /**
  * Lang strings
  *
- * @package    report
- * @subpackage security
+ * @package    report_security
  * @copyright  2008 petr Skoda
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -132,13 +131,7 @@ $string['check_webcron_warning'] = 'Anonymous users can access cron.';
 $string['check_webcron_name'] = 'Web cron';
 $string['check_webcron_ok'] = 'Anonymous users can not access cron.';
 $string['issue'] = 'Issue';
-$string['pluginname'] = 'Security overview';
+$string['pluginname'] = 'Security checks';
 $string['security:view'] = 'View security report';
-$string['status'] = 'Status';
-$string['statuscritical'] = 'Critical';
-$string['statusinfo'] = 'Information';
-$string['statusok'] = 'OK';
-$string['statusserious'] = 'Serious';
-$string['statuswarning'] = 'Warning';
 $string['timewarning'] = 'Data processing may take a long time, please be patient...';
 $string['privacy:metadata'] = 'The Security overview plugin does not store any personal data.';
