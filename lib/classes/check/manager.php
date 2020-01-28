@@ -66,6 +66,18 @@ class manager {
             new security\guestrole(),
             new security\frontpagerole(),
         ];
+
+        // Any plugin can add security checks to this report by implementing a callback
+        // <component>_security_checks() which returns a check object.
+        // See MDL-67776 for more details.
+        $morechecks = get_plugins_with_function('security_checks', 'lib.php');
+        foreach ($morechecks as $plugintype => $plugins) {
+            foreach ($plugins as $pluginfunction) {
+                $result = $pluginfunction();
+                $checks = array_merge($checks, $result);
+            }
+        }
+
         return $checks;
     }
 
