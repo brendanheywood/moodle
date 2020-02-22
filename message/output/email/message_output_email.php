@@ -99,8 +99,32 @@ class message_output_email extends message_output {
         }
 
         if ($emailuser) {
+
+            $fullmessagehtml = $eventdata->fullmessagehtml;
+
+            if ($eventdata->smallmessage != '' &&
+                $eventdata->smallmessage != $eventdata->subject &&
+                $eventdata->smallmessage != $eventdata->fullmessage) {
+
+                // The small message in this context will only ever be shown as text
+                // even if it has html markup.
+                $smallmessage = clean_param($eventdata->smallmessage, PARAM_NOTAGS);
+
+                $smallmessage = shorten_text($smallmessage, $ideal=300);
+
+                // This is a crazy but neat hack to get text previews of short text
+                // in a wide variety of email clients including iOS, Gmail
+                $spacer = str_repeat('&nbsp;&zwnj;', 300);
+
+                $previewtext = <<<EOF
+<div style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">$smallmessage</div>
+<div style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">$spacer</div>
+EOF;
+                $fullmessagehtml = $previewtext . $eventdata->fullmessagehtml;
+            }
+
             $result = email_to_user($recipient, $eventdata->userfrom, $eventdata->subject, $eventdata->fullmessage,
-                $eventdata->fullmessagehtml, $attachment, $attachname, true, $replyto, $replytoname);
+                $fullmessagehtml, $attachment, $attachname, true, $replyto, $replytoname);
         } else {
             $messagetosend = new stdClass();
             $messagetosend->useridfrom = $eventdata->userfrom->id;
