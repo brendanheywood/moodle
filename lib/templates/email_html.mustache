@@ -20,6 +20,9 @@
     Template for all html emails. Note that it may wrap content formatted
     elsewhere in another a module template.
 
+    This is a very vanilla template which simply shows a white page on
+    pale grey with a max width of 600px
+
     Context variables required for this template:
     * sitefullname
     * siteshortname
@@ -42,4 +45,50 @@
         "body": "Email body"
     }
 }}
-{{{body}}}
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<style type="text/css">
+        {{! CSS email reset for details: http://htmlemailboilerplate.com }}
+		#outlook a {padding:0;}
+		body{width:100% !important; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%;}
+		.ExternalClass {width:100%;}
+		.ExternalClass, .ExternalClass p, .ExternalClass span, .ExternalClass font, .ExternalClass td, .ExternalClass div {line-height: 100%;}
+		#backgroundTable {margin:0; padding:0; width:100% !important; line-height: 100% !important;}
+        {{! Minimal bootstrap based reset }}
+        h1, h2, h3, h4 {
+            margin: 8px 0;
+        }
+        ol, ul, dl {
+            margin: 16px 0;
+            padding: 0 0 0 24px;
+        }
+        li {
+            margin: 0;
+            padding: 0;
+        }
+        code {
+            color: #e83e8c;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body bgcolor="#f2f2f2" style="padding: 1px 0 16px; margin: 0; background: #f2f2f2;">
+
+    {{! Very basic wrapper for max width of 600px }}
+    <table border="0" cellspacing="0" width="100%">
+        <tr>
+            <td></td>
+            <td width="600" bgcolor="white">
+                <div style="padding: 0 16px 16px;">
+                    {{{body}}}
+                </div>
+            </td>
+            <td></td>
+        </tr>
+    </table>
+
+</body>
+</html>

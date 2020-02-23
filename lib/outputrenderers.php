@@ -330,9 +330,10 @@ class renderer_base {
      *
      * @param int $maxwidth The maximum width, or null when the maximum width does not matter.
      * @param int $maxheight The maximum height, or null when the maximum height does not matter.
+     * @param mixed $includetoken Whether to use a user token when displaying this logo image.
      * @return moodle_url|false
      */
-    public function get_logo_url($maxwidth = null, $maxheight = 200) {
+    public function get_logo_url($maxwidth = null, $maxheight = 200, $includetoken = null) {
         global $CFG;
         $logo = get_config('core_admin', 'logo');
         if (empty($logo)) {
@@ -347,7 +348,7 @@ class renderer_base {
 
         // Use $CFG->themerev to prevent browser caching when the file changes.
         return moodle_url::make_pluginfile_url(context_system::instance()->id, 'core_admin', 'logo', $filepath,
-            theme_get_revision(), $logo);
+            theme_get_revision(), $logo, false, $includetoken);
     }
 
     /**
@@ -4790,6 +4791,467 @@ EOD;
 }
 
 /**
+ * A renderer that generates output for html emails
+ *
+ * The implementation of this renderer is a limited subset.
+ *
+ * @copyright 2020 Brendan Heywood <brendan@catalyst-au.net>
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @since Moodle 2.0
+ * @package core
+ * @category output
+ */
+abstract class core_renderer_email extends core_renderer {
+
+    private $user;
+
+    public function set_user($user) {
+        $this->user = $user;
+    }
+
+}
+
+/**
+ * A renderer that generates output for html emails
+ *
+ * The implementation of this renderer is a limited subset.
+ *
+ * @copyright 2020 Brendan Heywood <brendan@catalyst-au.net>
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @since Moodle 2.0
+ * @package core
+ * @category output
+ */
+class core_renderer_textemail extends core_renderer_email {
+
+    public function preview_text($message) {
+        return '';
+    }
+    /**
+     * Returns the page header.
+     *
+     * @return string HTML fragment
+     */
+    public function header() {
+        $out = '';
+        // $out .= $this->heading($this->page->heading, 1);
+        return $out;
+    }
+
+    /**
+     * Returns a template fragment representing a Heading.
+     *
+     * @param string $text The text of the heading
+     * @param int $level The level of importance of the heading
+     * @param string $classes A space-separated list of CSS classes
+     * @param string $id An optional ID
+     * @return string A template fragment for a heading
+     */
+    public function heading($text, $level = 2, $classes = 'main', $id = null) {
+        $len = strlen($text);
+        $text .= "\n";
+        switch ($level) {
+            case 1:
+                return strtoupper($text) . str_repeat('=', $len) . "\n\n";
+            case 2:
+                return strtoupper($text) . str_repeat('-', $len) . "\n\n";
+            default:
+                return strtoupper($text) . "\n\n";
+        }
+    }
+
+    public function markdown($markdown) {
+        return content_to_text($markdown, FORMAT_MARKDOWN)."\n\n";
+    }
+
+    public function html($html) {
+        return content_to_text($markdown, FORMAT_HTML);
+    }
+
+    /**
+     * Returns an indent label and url
+     *
+     * Theme developers: DO NOT OVERRIDE! Please override function
+     * {@link core_renderer::render_single_button()} instead.
+     *
+     * @param string|moodle_url $url
+     * @param string $label button text
+     * @param string $method get or post submit method
+     * @param array $options associative array {disabled, title, etc.}
+     * @return string HTML fragment
+     */
+    public function single_button($url, $label, $method='post', array $options=null) {
+        $out = '';
+        if (!($url instanceof moodle_url)) {
+            $url = new moodle_url($url);
+        }
+        $button = new single_button($url, $label, $method);
+
+        $out .= "    $label\n";
+        $out .= "    $url\n\n";
+        return $out;
+    }
+
+    public function salutation($user) {
+        return "hi ".$user->firstname.",\n\n";
+    }
+
+    /**
+     * Text email signature mark
+     *
+     * https://tools.ietf.org/html/rfc3676#section-4.3
+     */
+    public function signature_mark() {
+        return "\n-- \n\n";
+    }
+
+    /**
+     * A nice text signature
+     *
+     */
+    public function signature_from($to, $from = null) {
+
+        $out = $this->signature_mark();
+        $out .= fullname($from);
+        $out .= "\n";
+        $out .= $from->email;
+        if (!empty($from->url)) {
+            $out .= "\n";
+            $out .= $from->url;
+        }
+        $out .= "\n";
+        return $out;
+    }
+
+    /**
+     * Show a signature for the support user
+     *
+     * This replaces generate_email_signoff().
+     */
+    public function signature_support($to) {
+
+        global $CFG, $SITE;
+        $out = '';
+        $out .= $this->signature_mark();
+        $out .= "thanks!\n\n";
+
+
+        if (!empty($CFG->supportname)) {
+            $out .= $CFG->supportname . "\n";
+        }
+        if (!empty($CFG->supportemail)) {
+            $out .= $CFG->supportemail . "\n";
+        }
+        if (!empty($CFG->supportpage)) {
+            $out .= $CFG->supportpage . "\n";
+        }
+        $out .= $SITE->fullname . "\n";
+        return $out;
+
+    }
+
+    /**
+     * Returns a text notification.
+     *
+     * @param string $message The message to print out.
+     * @param string $type    The type of notification. See constants on \core\output\notification.
+     * @return string A template fragment for a notification
+     */
+    public function notification($message, $type = null) {
+
+
+        switch ($type) {
+            case \core\output\notification::NOTIFY_SUCCESS:
+                $icon = '✓';
+                break;
+            case \core\output\notification::NOTIFY_INFO:
+                $icon = 'i';
+                break;
+            case \core\output\notification::NOTIFY_WARNING:
+                $icon = '⚠';
+                break;
+            case \core\output\notification::NOTIFY_ERROR:
+                $icon = '🛑';
+                break;
+            default:
+        }
+
+        $message = clean_text($message);
+        $message = html_to_text(nl2br($message), 70);
+
+        return "  $icon  $message\n\n";
+
+    }
+
+    /**
+     * There is no footer for a cli request, however we must override the
+     * footer method to prevent the default footer.
+     */
+    public function footer() {
+        // TODO detect multiple signature marks
+        // ubsubscribe links
+
+        return '';
+    }
+
+    /**
+     * Render a notification (that is, a status message about something that has
+     * just happened).
+     *
+     * @param \core\output\notification $notification the notification to print out
+     * @return string plain text output
+     */
+    public function render_notification(\core\output\notification $notification) {
+        return $this->notification($notification->get_message(), $notification->get_message_type());
+    }
+}
+
+/**
+ * A renderer that generates output for html emails
+ *
+ * The implementation of this renderer is a limited subset.
+ *
+ * @copyright 2020 Brendan Heywood <brendan@catalyst-au.net>
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @since Moodle 2.0
+ * @package core
+ * @category output
+ */
+class core_renderer_htmlemail extends core_renderer_email {
+
+    /**
+     * Returns the preview_text
+     *
+     * This MUST be rendered first in the email
+     *
+     * @return string HTML fragment
+     */
+    public function preview_text($message) {
+
+        // The small message in this context will only ever be shown as text
+        // even if it has html markup.
+        $message = clean_param($message, PARAM_NOTAGS);
+
+        // Most clients will only show arond 140-200 chars of text
+        $message = shorten_text($message, $ideal=300);
+
+        // This is a crazy but neat hack to get text previews of short text
+        // in a wide variety of email clients including iOS, Gmail
+        $spacer = str_repeat('&nbsp;&zwnj;', 300);
+
+        $previewtext = <<<EOF
+<div style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">$message</div>
+<div style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">$spacer</div>
+EOF;
+        return $previewtext;
+    }
+
+    /**
+     * Returns the page header.
+     *
+     * @return string HTML fragment
+     */
+    public function header() {
+        $out = '';
+        // $out .= $this->heading($this->page->heading, 1);
+        return $out;
+    }
+    public function heading($text, $level = 2, $classes = 'main', $id = null) {
+        return parent::heading($text, $level = 2, $classes = 'main', $id = null) . "\n";
+    }
+
+    public function markdown($markdown) {
+        return format_text($markdown, FORMAT_MARKDOWN) . "\n\n";
+    }
+
+    public function html($html) {
+        return format_text($markdown, FORMAT_HTML) . "\n\n";
+    }
+
+    /**
+     * Returns a single button link
+     *
+     * @param string|moodle_url $url
+     * @param string $label button text
+     * @param string $method Ignored
+     * @param array $options associative array {disabled, title, etc.}
+     * @return string HTML fragment
+     */
+    public function single_button($url, $label, $method='post', array $options=null) {
+        $out = '';
+        if (!($url instanceof moodle_url)) {
+            $url = new moodle_url($url);
+        }
+
+        return <<<EOF
+<table border="0" cellpadding="0" cellspacing="0" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; border-spacing: 0px; border-collapse: separate !important;">
+  <tbody>
+    <tr>
+      <td style="border-spacing: 0px; border-collapse: collapse; border-radius: 0px; margin: 0;" align="center" bgcolor="#007bff">
+        <a href="$url" style="font-sizee: 16px; text-decoration: none; line-heighte: 20px; display: inline-block; font-weight: normal; white-space: nowrap; background-color: #007bff; color: #ffffff; padding: 8px 12px; border: 1px solid #007bff;">$label</a>
+      </td>
+    </tr>
+    <tr>
+      <td height=10></td>
+    </tr>
+  </tbody>
+</table>
+EOF;
+    }
+
+    // public function box($contents, $classes = 'generalbox', $id = null, $attributes = array()) {
+    // public function box_start($classes = 'generalbox', $id = null, $attributes = array()) {
+    // public function box_end() {
+
+    public function salutation($user) {
+        return "<p>hi " . $user->firstname . ",</p>\n";
+// TODO push this into a mustache template
+// TODO should have example of formal Dear Mr Brendan Heywood
+// TODO and informal
+
+// TODO in the tracker also have an example renderer override showing a random nice way to
+// say hello, super informal
+// https://www.babbel.com/en/magazine/how-to-say-hello-in-10-different-languages
+    }
+
+    /**
+     * Text email signature boundary marker
+     *
+     * This is reasonably important as many email clients will collapse the footer
+     * especially in threads where this is repeated. Anything below this should
+     * be boilerplate or housekeeping information and not critical information.
+     *
+     * https://tools.ietf.org/html/rfc3676#section-4.3
+     */
+    public function signature_mark() {
+        return <<<EOF
+<hr noshade color="#FFFFFF" width="100%" size="1" style="padding:0; margin:16px 0; border:none; border-top: 1px solid #aaa; width:100%; height: 1px; color:#FFFFFF; background-color: #FFFFFF" />
+EOF;
+    }
+
+    /**
+     * Show a signature from any user
+     */
+    public function signature_from($to, $from = null) {
+
+        $out = $this->signature_mark();
+        $out .= '<table border=0><tr><td valign=top>';
+
+        $picture = new user_picture($from);
+        $picture->includetoken = $to->id;
+        $out .= $this->render_user_picture($picture);
+
+        $out .= '</td><td>';
+        $out .= html_writer::tag('b', fullname($from));
+        $out .= '<br>';
+        $out .= html_writer::link('mailto:' . $from->email, $from->email);
+        if (!empty($from->url)) {
+            $out .= '<br>';
+            $out .= html_writer::link($from->url, $from->url);
+        }
+        $out .= '</td></tr></table>';
+        return $out;
+    }
+
+    /**
+     * Show a signature for the support user
+     *
+     * This replaces generate_email_signoff().
+     */
+    public function signature_support($to) {
+        global $CFG, $SITE;
+
+        $out = $this->signature_mark();
+        $out .= "<p>thanks!<p>\n\n";
+
+        if (!empty($CFG->supportname)) {
+            $out .= html_writer::tag('b', $CFG->supportname);
+            $out .= '<br>';
+        }
+        if (!empty($CFG->supportemail)) {
+            $out .= html_writer::link('mailto:' . $CFG->supportemail, $CFG->supportemail);
+            $out .= '<br>';
+        }
+        if (!empty($CFG->supportpage)) {
+            $out .= html_writer::link($CFG->supportpage, $CFG->supportpage);
+            $out .= '<br>';
+        }
+
+        $logo = $this->get_logo_url(200, 100, $to->id);
+        if ($logo) {
+            $out .= html_writer::img($logo, $SITE->fullname);
+        } else {
+            $out .= html_writer::tag('span', $SITE->fullname);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Returns a template fragment representing a notification.
+     *
+     * @param string $message The message to print out.
+     * @param string $type    The type of notification. See constants on \core\output\notification.
+     * @return string A template fragment for a notification
+     */
+    public function notification($message, $type = null) {
+        $style = '';
+
+        switch ($type) {
+            case \core\output\notification::NOTIFY_SUCCESS:
+                $color = '#306030';
+                $border = '#d1ebd1';
+                $background = '#def1de';
+                break;
+            case \core\output\notification::NOTIFY_INFO:
+                $color = '#2f6473';
+                $border = '#d1edf6';
+                $background = '#def2f8';
+                break;
+            case \core\output\notification::NOTIFY_WARNING:
+                $color = '#7d5a29';
+                $border = '#fbe8cd;';
+                $background = '#fcefdc';
+                break;
+            case \core\output\notification::NOTIFY_ERROR:
+                $color = '#712b29';
+                $border = '#f4cfce';
+                $background = '#f7dddc';
+                break;
+            default:
+        }
+        $message = clean_text($message);
+        $tag = html_writer::tag('div', $message);
+        return <<<EOF
+<table border="0" cellpadding="0" cellspacing="0" style="font-family: sans-serif; mso-table-lspace: 0pt; mso-table-rspace: 0pt; border-spacing: 0px; border-collapse: separate !important; width: 100%; border: 0;">
+  <tbody>
+    <tr>
+      <td style="border-spacing: 0px; border-collapse: collapse; color: $color; margin: 0; padding: 12px 20px; border: 1px solid $border;" align="left" bgcolor="$background">
+        <div>$message</div>
+      </td>
+    </tr>
+    <tr>
+      <td>&nbsp;</td>
+    </tr>
+  </tbody>
+</table>
+EOF;
+    }
+
+    /**
+     * There is no footer for a html email request, however we must override the
+     * footer method to prevent the default footer.
+     */
+    public function footer() {
+        // TODO detect multiple signature marks
+        // ubsubscribe links
+
+        return '';
+    }
+
+}
+
+/**
  * A renderer that generates output for command-line scripts.
  *
  * The implementation of this renderer is probably incomplete.
@@ -4913,7 +5375,9 @@ class core_renderer_cli extends core_renderer {
      * There is no footer for a cli request, however we must override the
      * footer method to prevent the default footer.
      */
-    public function footer() {}
+    public function footer() {
+        return '';
+    }
 
     /**
      * Render a notification (that is, a status message about something that has

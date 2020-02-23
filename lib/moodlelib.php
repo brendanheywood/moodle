@@ -6419,19 +6419,12 @@ function can_send_from_real_email_address($from, $user, $unused = null) {
  * @return string
  */
 function generate_email_signoff() {
-    global $CFG;
+    global $PAGE, $USER;
 
-    $signoff = "\n";
-    if (!empty($CFG->supportname)) {
-        $signoff .= $CFG->supportname."\n";
-    }
-    if (!empty($CFG->supportemail)) {
-        $signoff .= $CFG->supportemail."\n";
-    }
-    if (!empty($CFG->supportpage)) {
-        $signoff .= $CFG->supportpage."\n";
-    }
-    return $signoff;
+    $out = $PAGE->get_renderer('core', 'admin', RENDERER_TARGET_TEXTEMAIL);
+
+    return $out->signature_support($USER);
+
 }
 
 /**
@@ -6586,6 +6579,8 @@ function send_password_change_confirmation_email($user, $resetrecord) {
     $data->link      = $CFG->wwwroot .'/login/forgot_password.php?token='. $resetrecord->token;
     $data->admin     = generate_email_signoff();
     $data->resetminutes = $pwresetmins;
+
+// TODO test case
 
     $message = get_string('emailresetconfirmation', '', $data);
     $subject = get_string('emailresetconfirmationsubject', '', format_string($site->fullname));

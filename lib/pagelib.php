@@ -96,6 +96,7 @@ defined('MOODLE_INTERNAL') || die();
  * @property-read string $title The title that should go in the <head> section of the HTML of this page.
  * @property-read moodle_url $url The moodle url object for this page.
  */
+
 class moodle_page {
 
     /** The state of the page before it has printed the header **/

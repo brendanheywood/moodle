@@ -152,6 +152,7 @@ abstract class renderer_factory_base implements renderer_factory {
             case RENDERER_TARGET_TEXTEMAIL: $suffix = '_textemail'; break;
             case RENDERER_TARGET_HTMLEMAIL: $suffix = '_htmlemail'; break;
             case RENDERER_TARGET_MAINTENANCE: $suffix = '_maintenance'; break;
+
             default: $target = RENDERER_TARGET_GENERAL; $suffix = '';
         }
 
