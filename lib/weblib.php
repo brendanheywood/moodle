@@ -3613,11 +3613,28 @@ class combined_progress_trace extends progress_trace {
  * @return string
  */
 function print_password_policy() {
+
+    $messages = get_password_policy_items();
+    $messages = join(', ', $messages); // This is ugly but we do not have anything better yet...
+    // Check if messages is empty before outputting any text.
+    if ($messages != '') {
+        return get_string('informpasswordpolicy', 'auth', $messages);
+    }
+    return '';
+}
+
+/**
+ * Returns a localized sentence in the current language summarizing the current password policy
+ *
+ * @todo this should be handled by a function/method in the language pack library once we have a support for it
+ * @uses $CFG
+ * @return string
+ */
+function get_password_policy_items() {
     global $CFG;
 
-    $message = '';
+    $messages = array();
     if (!empty($CFG->passwordpolicy)) {
-        $messages = array();
         if (!empty($CFG->minpasswordlength)) {
             $messages[] = get_string('informminpasswordlength', 'auth', $CFG->minpasswordlength);
         }
@@ -3643,13 +3660,8 @@ function print_password_policy() {
             }
         }
 
-        $messages = join(', ', $messages); // This is ugly but we do not have anything better yet...
-        // Check if messages is empty before outputting any text.
-        if ($messages != '') {
-            $message = get_string('informpasswordpolicy', 'auth', $messages);
-        }
     }
-    return $message;
+    return $messages;
 }
 
 /**

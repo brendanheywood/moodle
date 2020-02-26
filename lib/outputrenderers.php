@@ -4746,6 +4746,360 @@ EOD;
 }
 
 /**
+ * A renderer that generates output for html emails
+ *
+ * The implementation of this renderer is a limited subset.
+ *
+ * @copyright 2020 Brendan Heywood <brendan@catalyst-au.net>
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @since Moodle 2.0
+ * @package core
+ * @category output
+ */
+abstract class core_renderer_email extends core_renderer {
+
+    private $user;
+
+    public function set_user($user) {
+        $this->user = $user;
+    }
+
+}
+
+/**
+ * A renderer that generates output for html emails
+ *
+ * The implementation of this renderer is a limited subset.
+ *
+ * @copyright 2020 Brendan Heywood <brendan@catalyst-au.net>
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @since Moodle 2.0
+ * @package core
+ * @category output
+ */
+class core_renderer_textemail extends core_renderer_email {
+
+    /**
+     * Returns the page header.
+     *
+     * @return string HTML fragment
+     */
+    public function header() {
+        $out = '';
+        // $out .= $this->heading($this->page->heading, 1);
+        return $out;
+    }
+
+    /**
+     * Returns a template fragment representing a Heading.
+     *
+     * @param string $text The text of the heading
+     * @param int $level The level of importance of the heading
+     * @param string $classes A space-separated list of CSS classes
+     * @param string $id An optional ID
+     * @return string A template fragment for a heading
+     */
+    public function heading($text, $level = 2, $classes = 'main', $id = null) {
+        $len = strlen($text);
+        $text .= "\n";
+        switch ($level) {
+            case 1:
+                return strtoupper($text) . str_repeat('=', $len) . "\n\n";
+            case 2:
+                return strtoupper($text) . str_repeat('-', $len) . "\n\n";
+            default:
+                return strtoupper($text) . "\n\n";
+        }
+    }
+
+    public function markdown($markdown) {
+        // 
+        return $markdown . "\n\n";
+    }
+
+    public function html($html) {
+        // 
+        return $html . "\n\n";
+    }
+
+    /**
+     * Returns a form with a single button.
+     *
+     * Theme developers: DO NOT OVERRIDE! Please override function
+     * {@link core_renderer::render_single_button()} instead.
+     *
+     * @param string|moodle_url $url
+     * @param string $label button text
+     * @param string $method get or post submit method
+     * @param array $options associative array {disabled, title, etc.}
+     * @return string HTML fragment
+     */
+    public function single_button($url, $label, $method='post', array $options=null) {
+        $out = '';
+        if (!($url instanceof moodle_url)) {
+            $url = new moodle_url($url);
+        }
+        $button = new single_button($url, $label, $method);
+
+        $out .= "    $label\n";
+        $out .= "    $url\n\n";
+        return $out;
+    }
+
+    // public function box($contents, $classes = 'generalbox', $id = null, $attributes = array()) {
+    // public function box_start($classes = 'generalbox', $id = null, $attributes = array()) {
+    // public function box_end() {
+
+    public function salutation() {
+        return "hi Brendan,\n\n";
+    }
+
+    /**
+     * Text email sig
+     *
+     * https://tools.ietf.org/html/rfc3676#section-4.3
+     */
+    public function signature_mark() {
+        return "\n-- \n\n";
+    }
+
+    /*
+     *
+     */
+    public function signature_support() {
+
+        $out = '';
+        $out .= $this->signature_mark();
+        $out .= "thanks!\n";
+        $out .= generate_email_signoff();
+        return $out;
+
+    }
+
+    /**
+     * Returns a template fragment representing a fatal error.
+     *
+     * @param string $message The message to output
+     * @param string $moreinfourl URL where more info can be found about the error
+     * @param string $link Link for the Continue button
+     * @param array $backtrace The execution backtrace
+     * @param string $debuginfo Debugging information
+     * @return string A template fragment for a fatal error
+     */
+    public function fatal_error($message, $moreinfourl, $link, $backtrace, $debuginfo = null, $errorcode = "") {
+        global $CFG;
+
+        $output = "!!! $message !!!\n";
+
+        if ($CFG->debugdeveloper) {
+            if (!empty($debuginfo)) {
+                $output .= $this->notification($debuginfo, 'notifytiny');
+            }
+            if (!empty($backtrace)) {
+                $output .= $this->notification('Stack trace: ' . format_backtrace($backtrace, true), 'notifytiny');
+            }
+        }
+
+        return $output;
+    }
+
+    /**
+     * Returns a template fragment representing a notification.
+     *
+     * @param string $message The message to print out.
+     * @param string $type    The type of notification. See constants on \core\output\notification.
+     * @return string A template fragment for a notification
+     */
+    public function notification($message, $type = null) {
+        $message = clean_text($message);
+        if ($type === 'notifysuccess' || $type === 'success') {
+            return "++ $message ++\n";
+        }
+        return "!! $message !!\n";
+    }
+
+    /**
+     * There is no footer for a cli request, however we must override the
+     * footer method to prevent the default footer.
+     */
+    public function footer() {
+        // TODO detect multiple signature marks
+        // ubsubscribe links
+
+        return '';
+    }
+
+    /**
+     * Render a notification (that is, a status message about something that has
+     * just happened).
+     *
+     * @param \core\output\notification $notification the notification to print out
+     * @return string plain text output
+     */
+    public function render_notification(\core\output\notification $notification) {
+        return $this->notification($notification->get_message(), $notification->get_message_type());
+    }
+}
+
+/**
+ * A renderer that generates output for html emails
+ *
+ * The implementation of this renderer is a limited subset.
+ *
+ * @copyright 2020 Brendan Heywood <brendan@catalyst-au.net>
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @since Moodle 2.0
+ * @package core
+ * @category output
+ */
+class core_renderer_htmlemail extends core_renderer_email {
+
+    private $user;
+
+    public function set_user($user) {
+        $this->user = $user;
+    }
+
+    /**
+     * Returns the page header.
+     *
+     * @return string HTML fragment
+     */
+    public function header() {
+        $out = '';
+        $out .= $this->heading($this->page->heading, 1);
+        return $out;
+    }
+    public function heading($text, $level = 2, $classes = 'main', $id = null) {
+        return parent::heading($text, $level = 2, $classes = 'main', $id = null) . "\n";
+    }
+
+    public function markdown($markdown) {
+        return format_text($markdown, FORMAT_MARKDOWN) . "\n\n";
+    }
+
+    public function html($html) {
+        return format_text($markdown, FORMAT_HTML) . "\n\n";
+    }
+
+    /**
+     * Returns a single button link
+     *
+     * @param string|moodle_url $url
+     * @param string $label button text
+     * @param string $method Ignored
+     * @param array $options associative array {disabled, title, etc.}
+     * @return string HTML fragment
+     */
+    public function single_button($url, $label, $method='post', array $options=null) {
+        $out = '';
+        if (!($url instanceof moodle_url)) {
+            $url = new moodle_url($url);
+        }
+
+        $tag = html_writer::tag('a', $label, [
+            'style' => 'padding: 3px; border: 1px solid;',
+            'href' => $url,
+        ]);
+        return html_writer::tag('blockquote', $tag) . "\n\n";
+    }
+
+    // public function box($contents, $classes = 'generalbox', $id = null, $attributes = array()) {
+    // public function box_start($classes = 'generalbox', $id = null, $attributes = array()) {
+    // public function box_end() {
+
+    public function salutation() {
+        return "<p>hi Brendan,</p>\n";
+    }
+
+    /**
+     * Text email sig
+     *
+     * https://tools.ietf.org/html/rfc3676#section-4.3
+     */
+    public function signature_mark() {
+        return "\n<p>-- </p>\n<br>\n";
+    }
+
+    /*
+     *
+     */
+    public function signature_support() {
+
+        $out = '';
+        $out .= $this->signature_mark();
+        $out .= "thanks!\n";
+        $out .= $this->markdown(generate_email_signoff());
+        return $out;
+
+    }
+
+    /**
+     * Returns a template fragment representing a fatal error.
+     *
+     * @param string $message The message to output
+     * @param string $moreinfourl URL where more info can be found about the error
+     * @param string $link Link for the Continue button
+     * @param array $backtrace The execution backtrace
+     * @param string $debuginfo Debugging information
+     * @return string A template fragment for a fatal error
+     */
+    public function fatal_error($message, $moreinfourl, $link, $backtrace, $debuginfo = null, $errorcode = "") {
+        global $CFG;
+
+        $output = "!!! $message !!!\n";
+
+        if ($CFG->debugdeveloper) {
+            if (!empty($debuginfo)) {
+                $output .= $this->notification($debuginfo, 'notifytiny');
+            }
+            if (!empty($backtrace)) {
+                $output .= $this->notification('Stack trace: ' . format_backtrace($backtrace, true), 'notifytiny');
+            }
+        }
+
+        return $output;
+    }
+
+    /**
+     * Returns a template fragment representing a notification.
+     *
+     * @param string $message The message to print out.
+     * @param string $type    The type of notification. See constants on \core\output\notification.
+     * @return string A template fragment for a notification
+     */
+    public function notification($message, $type = null) {
+        $message = clean_text($message);
+        if ($type === 'notifysuccess' || $type === 'success') {
+            return "++ $message ++\n";
+        }
+        return "!! $message !!\n";
+    }
+
+    /**
+     * There is no footer for a cli request, however we must override the
+     * footer method to prevent the default footer.
+     */
+    public function footer() {
+        // TODO detect multiple signature marks
+        // ubsubscribe links
+
+        return '';
+    }
+
+    /**
+     * Render a notification (that is, a status message about something that has
+     * just happened).
+     *
+     * @param \core\output\notification $notification the notification to print out
+     * @return string plain text output
+     */
+    public function render_notification(\core\output\notification $notification) {
+        return $this->notification($notification->get_message(), $notification->get_message_type());
+    }
+}
+
+/**
  * A renderer that generates output for command-line scripts.
  *
  * The implementation of this renderer is probably incomplete.
@@ -4834,7 +5188,9 @@ class core_renderer_cli extends core_renderer {
      * There is no footer for a cli request, however we must override the
      * footer method to prevent the default footer.
      */
-    public function footer() {}
+    public function footer() {
+        return '';
+    }
 
     /**
      * Render a notification (that is, a status message about something that has

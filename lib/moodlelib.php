@@ -6498,6 +6498,8 @@ function send_password_change_confirmation_email($user, $resetrecord) {
     $data->admin     = generate_email_signoff();
     $data->resetminutes = $pwresetmins;
 
+// TODO test case
+
     $message = get_string('emailresetconfirmation', '', $data);
     $subject = get_string('emailresetconfirmationsubject', '', format_string($site->fullname));
 
