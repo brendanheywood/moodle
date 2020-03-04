@@ -34,6 +34,8 @@ defined('MOODLE_INTERNAL') || die();
 class core_shutdown_manager {
     /** @var array list of custom callbacks */
     protected static $callbacks = [];
+    /** @var array list of custom callbacks to fire after session close */
+    protected static $callbacksaftersession = [];
     /** @var array list of custom signal callbacks */
     protected static $signalcallbacks = [];
     /** @var bool is this manager already registered? */
@@ -136,15 +138,20 @@ class core_shutdown_manager {
      *
      * @param callable $callback
      * @param array $params
+     * @param bool $aftersession Allow callbacks to be run after the session has closed.
      * @return void
      */
-    public static function register_function($callback, array $params = null): void {
+    public static function register_function($callback, array $params = null, bool $aftersession = false): void {
         if (!is_callable($callback)) {
             // @codingStandardsIgnoreStart
             error_log('Invalid custom shutdown function detected '.var_export($callback, true));
             // @codingStandardsIgnoreEnd
         }
-        self::$callbacks[] = [$callback, $params ?? []];
+        if ($aftersession) {
+            self::$callbacksaftersession[] = [$callback, $params ?? []];
+        } else {
+            self::$callbacks[] = [$callback, $params ?? []];
+        }
     }
 
     /**
@@ -179,6 +186,19 @@ class core_shutdown_manager {
 
         // Close sessions - do it here to make it consistent for all session handlers.
         \core\session\manager::write_close();
+
+        // Run expensive custom callbacks after the session has closed, for example
+        // the moodle log manager does not need the session to be open.
+        foreach (self::$callbacksaftersession as $data) {
+            list($callback, $params) = $data;
+            try {
+                call_user_func_array($callback, $params);
+            } catch (Throwable $e) {
+                // @codingStandardsIgnoreStart
+                error_log('Exception ignored in shutdown function ' . get_callable_name($callback) . ': ' . $e->getMessage());
+                // @codingStandardsIgnoreEnd
+            }
+        }
 
         // Other cleanup.
         self::request_shutdown();
