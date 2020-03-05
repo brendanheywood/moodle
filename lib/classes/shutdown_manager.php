@@ -155,10 +155,35 @@ class core_shutdown_manager {
     }
 
     /**
+     * Close any errant open transactions
+     *
+     * @param string $label which shutdown stage it was detected.
+     */
+    private static function check_transactions(string $label) : void {
+        global $DB;
+
+        // Handle DB transactions, session need to be written afterwards
+        // in order to maintain consistency in all session handlers.
+        if ($DB->is_transaction_started()) {
+            if (!defined('PHPUNIT_TEST') or !PHPUNIT_TEST) {
+                // This should not happen, it usually indicates wrong catching of exceptions,
+                // because all transactions should be finished manually or in default exception handler.
+                $backtrace = $DB->get_transaction_start_backtrace();
+                error_log("Potential coding error - active database transaction detected $label:\n" . format_backtrace($backtrace, true));
+            }
+            $DB->force_transaction_rollback();
+        }
+    }
+
+    /**
      * @private - do NOT call directly.
      */
     public static function shutdown_handler() {
         global $DB;
+
+        // First close any broken transactions from the main script so there is zero
+        // chance of being inside a transaction when we try to append to the log.
+        self::check_transactions('during request shutdown');
 
         // Custom stuff first.
         foreach (self::$callbacks as $data) {
@@ -172,17 +197,8 @@ class core_shutdown_manager {
             }
         }
 
-        // Handle DB transactions, session need to be written afterwards
-        // in order to maintain consistency in all session handlers.
-        if ($DB->is_transaction_started()) {
-            if (!defined('PHPUNIT_TEST') or !PHPUNIT_TEST) {
-                // This should not happen, it usually indicates wrong catching of exceptions,
-                // because all transactions should be finished manually or in default exception handler.
-                $backtrace = $DB->get_transaction_start_backtrace();
-                error_log('Potential coding error - active database transaction detected during request shutdown:'."\n".format_backtrace($backtrace, true));
-            }
-            $DB->force_transaction_rollback();
-        }
+        // Close any broken transactions from the custom callbacks.
+        self::check_transactions('during a shutdown callback');
 
         // Close sessions - do it here to make it consistent for all session handlers.
         \core\session\manager::write_close();
@@ -199,6 +215,10 @@ class core_shutdown_manager {
                 // @codingStandardsIgnoreEnd
             }
         }
+
+        // Close any broken transactions from the deferred custom callbacks.
+        self::check_transactions('during a deferred shutdown callback');
+
 
         // Other cleanup.
         self::request_shutdown();
