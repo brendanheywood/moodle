@@ -40,7 +40,7 @@ class manager {
     /**
      * The list of valid check types
      */
-    public const TYPES = ['status', 'security'];
+    public const TYPES = ['status', 'security', 'performance'];
 
     /**
      * Return all status checks
@@ -58,6 +58,47 @@ class manager {
     }
 
     /**
+     * Return all plugin checks of a certain type
+     *
+     * @return array of check objects
+     */
+    static public function get_plugin_checks($type): array {
+
+        $checks = [];
+        $pluginchecks = get_plugins_with_function($type . '_checks', 'lib.php');
+        foreach ($pluginchecks as $plugintype => $plugins) {
+            foreach ($plugins as $plugin => $pluginfunction) {
+                $result = $pluginfunction();
+                foreach ($result as $check) {
+                    $check->set_component($plugintype .  '_' . $plugin);
+                    $checks[] = $check;
+                }
+            }
+        }
+        return $checks;
+    }
+
+    /**
+     * Return all performance checks
+     *
+     * @return array of check objects
+     */
+    static public function get_performance_checks(): array {
+        $checks = [
+            new performance\designermode(),
+            new performance\cachejs(),
+            new performance\debugging(),
+            new performance\backups(),
+            new performance\stats(),
+        ];
+
+        // Any plugin can add performance checks to this report by implementing a callback
+        // <component>_performance_checks() which returns a check object.
+        $checks = array_merge($checks, self::get_plugin_checks('performance'));
+        return $checks;
+    }
+
+    /**
      * Return all status checks
      *
      * @return array of check objects
@@ -70,16 +111,7 @@ class manager {
 
         // Any plugin can add status checks to this report by implementing a callback
         // <component>_status_checks() which returns a check object.
-        $morechecks = get_plugins_with_function('status_checks', 'lib.php');
-        foreach ($morechecks as $plugintype => $plugins) {
-            foreach ($plugins as $plugin => $pluginfunction) {
-                $result = $pluginfunction();
-                foreach ($result as $check) {
-                    $check->set_component($plugintype . '_' . $plugin);
-                    $checks[] = $check;
-                }
-            }
-        }
+        $checks = array_merge($checks, self::get_plugin_checks('status'));
         return $checks;
     }
 
@@ -113,16 +145,7 @@ class manager {
         ];
         // Any plugin can add security checks to this report by implementing a callback
         // <component>_security_checks() which returns a check object.
-        $morechecks = get_plugins_with_function('security_checks', 'lib.php');
-        foreach ($morechecks as $plugintype => $plugins) {
-            foreach ($plugins as $plugin => $pluginfunction) {
-                $result = $pluginfunction();
-                foreach ($result as $check) {
-                    $check->set_component($plugintype . '_' . $plugin);
-                    $checks[] = $check;
-                }
-            }
-        }
+        $checks = array_merge($checks, self::get_plugin_checks('security'));
         return $checks;
     }
 }
