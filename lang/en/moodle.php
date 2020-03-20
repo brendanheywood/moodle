@@ -716,20 +716,16 @@ $string['emailpasswordsent'] = 'Thank you for confirming the change of password.
 An email containing your new password has been sent to your address at<br /><b>{$a->email}</b>.<br />
 The new password was automatically generated - you might like to
 <a href="{$a->link}">change your password</a> to something easier to remember.';
-$string['emailresetconfirmation'] = 'Hi {$a->firstname},
+$string['emailresetyourpassword'] = 'Reset your password';
+$string['emailresetintro'] = 'A password reset was requested for your account <code>{$a->username}</code> at {$a->sitename}.
 
-A password reset was requested for your account \'{$a->username}\' at {$a->sitename}.
+To confirm this request, and set a new password for your account:';
 
-To confirm this request, and set a new password for your account, please
-go to the following web address:
-
-{$a->link}
-(This link is valid for {$a->resetminutes} minutes from the time this reset was first requested)
+$string['emailresethelp'] = 'This link is valid for {$a->resetminutes} minutes from the time this reset was first requested.
 
 If this password reset was not requested by you, no action is needed.
 
-If you need help, please contact the site administrator,
-{$a->admin}';
+If you need help, please contact the site administrator.';
 $string['emailresetconfirmationsubject'] = '{$a}: Password reset request';
 $string['emailresetconfirmsent'] = 'An email has been sent to your address at <b>{$a}</b>.
 <br />It contains easy instructions to confirm and complete this password change.

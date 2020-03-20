@@ -6571,22 +6571,16 @@ function send_password_change_confirmation_email($user, $resetrecord) {
     $supportuser = core_user::get_support_user();
     $pwresetmins = isset($CFG->pwresettime) ? floor($CFG->pwresettime / MINSECS) : 30;
 
-    $data = new stdClass();
-    $data->firstname = $user->firstname;
-    $data->lastname  = $user->lastname;
-    $data->username  = $user->username;
-    $data->sitename  = format_string($site->fullname);
-    $data->link      = $CFG->wwwroot .'/login/forgot_password.php?token='. $resetrecord->token;
-    $data->admin     = generate_email_signoff();
-    $data->resetminutes = $pwresetmins;
+    $email = new core\email\password_change_confirmation($supportuser, $user, [
+        'token' => $resetrecord->token,
+        'resetmins' => $pwresetmins,
+    ]);
+    $format = $email->render_text_and_html('core');
 
-// TODO test case
-
-    $message = get_string('emailresetconfirmation', '', $data);
     $subject = get_string('emailresetconfirmationsubject', '', format_string($site->fullname));
 
     // Directly email rather than using the messaging system to ensure its not routed to a popup or jabber.
-    return email_to_user($user, $supportuser, $subject, $message);
+    return email_to_user($user, $supportuser, $subject, $format->text, $format->html);
 
 }
 
