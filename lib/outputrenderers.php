@@ -4793,7 +4793,20 @@ EOD;
 /**
  * A renderer that generates output for html emails
  *
- * The implementation of this renderer is a limited subset.
+ * The implementation of this renderer is a very limited subset of a normal
+ * renderer compared to the core web renderer. This class defines the safe
+ * extra email specific render functions which can be used in an email as
+ * well as some common web functions which are also supported:
+ *
+ * Supported web functions:
+ *  - header // TODO
+ *  - heading
+ *  - notification
+ *  - single_button
+ *  - markdown / html // TODO merge!
+ * Extra email specific methods:
+ *  - greeting
+ *
  *
  * @copyright 2020 Brendan Heywood <brendan@catalyst-au.net>
  * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -4803,10 +4816,77 @@ EOD;
  */
 abstract class core_renderer_email extends core_renderer {
 
-    private $user;
+    protected $to = null;
 
-    public function set_user($user) {
-        $this->user = $user;
+    protected $from = null;
+
+    /**
+     * Set the recipient of the email
+     *
+     * Most of the email atoms need to know the recipient for technical reasons
+     * including adding tokens to images so they load correctly. So 
+     *
+     * @param stdClass $user object
+     */
+    public function set_to($user) {
+        $this->to = $user;
+    }
+
+    /**
+     * Set the sender of the email
+     * @param stdClass $user object
+     */
+    public function set_from($user) {
+        $this->from = $user;
+    }
+
+    // TODO define
+    // 
+
+    abstract public function salutation();
+    abstract public function signature_mark();
+    abstract public function signature_from();
+    abstract public function signature_support();
+
+    /**
+     * Returns rendered widget.
+     *
+     * The provided widget needs to be an object that extends the renderable
+     * interface.
+     * If will then be rendered by a method based upon the classname for the widget.
+     * For instance a widget of class `crazywidget` will be rendered by a protected
+     * render_crazywidget method of this renderer.
+     * If no render_crazywidget method exists and crazywidget implements templatable,
+     * look for the 'crazywidget' template in the same component and render that.
+     *
+     * @param renderable $widget instance with renderable interface
+     * @return string
+     */
+    public function render(renderable $widget) {
+
+
+        $classparts = explode('\\', get_class($widget));
+        // Strip namespaces.
+        $classname = array_pop($classparts);
+        // Remove _renderable suffixes
+        $classname = preg_replace('/_renderable$/', '', $classname);
+
+        $rendermethod = 'render_'.$classname;
+        if (method_exists($this, $rendermethod)) {
+            return $this->$rendermethod($widget);
+        }
+        if ($widget instanceof templatable) {
+            $component = array_shift($classparts);
+            if (!$component) {
+                $component = 'core';
+            }
+            $template = $component . '/' . $classname;
+            $context = $widget->export_for_template($this);
+            return $this->render_from_template($template, $context);
+        }
+
+
+        throw new coding_exception('Can not render widget, renderer method ('.$rendermethod.') not found.');
     }
 
 }
@@ -4892,8 +4972,8 @@ class core_renderer_textemail extends core_renderer_email {
         return $out;
     }
 
-    public function salutation($user) {
-        return "hi ".$user->firstname.",\n\n";
+    public function salutation() {
+        return "hi " . $this->to->firstname.",\n\n";
     }
 
     /**
@@ -4909,7 +4989,10 @@ class core_renderer_textemail extends core_renderer_email {
      * A nice text signature
      *
      */
-    public function signature_from($to, $from = null) {
+    public function signature_from() {
+
+        $to = $this->to;
+        $from = $this->from;
 
         $out = $this->signature_mark();
         $out .= fullname($from);
@@ -4928,7 +5011,7 @@ class core_renderer_textemail extends core_renderer_email {
      *
      * This replaces generate_email_signoff().
      */
-    public function signature_support($to) {
+    public function signature_support() {
 
         global $CFG, $SITE;
         $out = '';
@@ -5099,12 +5182,8 @@ EOF;
 EOF;
     }
 
-    // public function box($contents, $classes = 'generalbox', $id = null, $attributes = array()) {
-    // public function box_start($classes = 'generalbox', $id = null, $attributes = array()) {
-    // public function box_end() {
-
-    public function salutation($user) {
-        return "<p>hi " . $user->firstname . ",</p>\n";
+    public function salutation() {
+        return "<p>hi " . $this->to->firstname . ",</p>\n";
 // TODO push this into a mustache template
 // TODO should have example of formal Dear Mr Brendan Heywood
 // TODO and informal
@@ -5132,7 +5211,10 @@ EOF;
     /**
      * Show a signature from any user
      */
-    public function signature_from($to, $from = null) {
+    public function signature_from() {
+
+        $to = $this->to;
+        $from = $this->from;
 
         $out = $this->signature_mark();
         $out .= '<table border=0><tr><td valign=top>';
@@ -5158,8 +5240,11 @@ EOF;
      *
      * This replaces generate_email_signoff().
      */
-    public function signature_support($to) {
+    public function signature_support() {
         global $CFG, $SITE;
+
+        $to = $this->to;
+        $from = $this->from;
 
         $out = $this->signature_mark();
         $out .= "<p>thanks!<p>\n\n";

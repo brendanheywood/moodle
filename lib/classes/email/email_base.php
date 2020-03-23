@@ -64,6 +64,14 @@ abstract class email_base implements \renderable {
     }
 
     /**
+     * Render defines the structure of email email
+     *
+     * Each email should be composed of other atomic parts such
+     * as the email signature
+     */
+    abstract public function render($renderer);
+
+    /**
      * A convenience function to dual render in text and html
      */
     public function render_text_and_html($component, $subtype = null) {
@@ -76,17 +84,26 @@ abstract class email_base implements \renderable {
         $page->set_url('/');
         $page->set_context(\context_system::instance());
 
+// TODO can page hold the to user? what about the from user?
+
         // TODO now optionally set the theme based on the recipient
         // TODO AND the email is in the language of the recipient!!??!!
 
-        $text_renderer = $page->get_renderer($component, $subtype, RENDERER_TARGET_TEXTEMAIL);
-        $html_renderer = $page->get_renderer($component, $subtype, RENDERER_TARGET_HTMLEMAIL);
+        $textrenderer = $page->get_renderer($component, $subtype, RENDERER_TARGET_TEXTEMAIL);
+        $textrenderer->set_to($this->to);
+        $textrenderer->set_from($this->from);
+
+        $htmlrenderer = $page->get_renderer($component, $subtype, RENDERER_TARGET_HTMLEMAIL);
+        $htmlrenderer->set_to($this->to);
+        $htmlrenderer->set_from($this->from);
 
         return (object)[
-            'text' => $this->render($text_renderer),
-            'html' => $this->render($html_renderer),
+            'text' => $this->render($textrenderer),
+            'html' => $this->render($htmlrenderer),
         ];
     }
+
+
 
 }
 

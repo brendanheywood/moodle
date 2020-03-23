@@ -29,11 +29,14 @@ defined('MOODLE_INTERNAL') || die();
 
 class password_change_confirmation extends email_base {
 
+    /**
+     *
+     */
     function render($output) {
 
         global $SITE;
 
-        $out = $output->salutation($this->to);
+        $out = $output->salutation();
         $out .= $output->markdown(get_string('emailresetintro', '', [
             'username' => s($this->to->username),
             'sitename' => s($SITE->fullname),
@@ -43,7 +46,7 @@ class password_change_confirmation extends email_base {
         $out .= $output->single_button($url, get_string('emailresetyourpassword'));
 
         $out .= $output->markdown(get_string('emailresethelp', '', ['resetminutes' => $this->data['resetmins']]));
-        $out .= $output->signature_support($this->to);
+        $out .= $output->signature_support();
         return $out;
 
     }

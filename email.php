@@ -1,6 +1,6 @@
 <?php
 
-// define('CLI_SCRIPT', true);
+define('CLI_SCRIPT', true);
 
 require('config.php');
 require('login/lib.php');
