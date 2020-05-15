@@ -152,6 +152,8 @@ class manager {
             $GLOBALS['SESSION'] = $_SESSION['SESSION'];
             $_SESSION['SESSION'] =& $GLOBALS['SESSION'];
 
+            header(sprintf('Server-Timing: session-wait;dur=%.3f', $PERF->sessionlock['wait'] * 1000));
+
         } catch (\Exception $ex) {
             self::init_empty_session();
             self::$sessionactive = false;
