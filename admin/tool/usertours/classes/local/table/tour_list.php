@@ -38,6 +38,7 @@ require_once($CFG->libdir . '/tablelib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class tour_list extends \flexible_table {
+    use \action_table_trait;
     /**
      * Construct the tour table.
      */
@@ -114,38 +115,97 @@ class tour_list extends \flexible_table {
     }
 
     /**
-     * Format the current row's actions column.
+     * Used by the action_table_trait (col_actions function) to
+     * render the table's actions as action_links.
+     * i.e. action_link(url, text, component_action, attributes, icon)
      *
-     * @param   tour    $tour       The tour for this row.
-     * @return  string
+     * @param  object $row
+     * @return array  An array of action_links.
      */
-    protected function col_actions(tour $tour) {
+    public function get_table_actions($row) {
+
+        // The actions list for the table.
         $actions = [];
 
-        if ($tour->is_first_tour()) {
-            $actions[] = helper::get_filler_icon();
+        if ($row->is_first_tour()) {
+            $actions[] = new \action_link(
+                $row->get_moveup_link(),
+                get_string('movetourup', 'tool_usertours'),
+                null,
+                ['disabled' => true],
+                new \pix_icon('t/up', get_string('movetourup', 'tool_usertours'))
+            );
         } else {
-            $actions[] = helper::format_icon_link($tour->get_moveup_link(), 't/up',
-                    get_string('movetourup', 'tool_usertours'));
+            $actions[] = new \action_link(
+                $row->get_moveup_link(),
+                get_string('movetourup', 'tool_usertours'),
+                null,
+                null,
+                new \pix_icon('t/up', get_string('movetourup', 'tool_usertours'))
+            );
         }
 
-        if ($tour->is_last_tour($this->tourcount)) {
-            $actions[] = helper::get_filler_icon();
+        if ($row->is_last_tour($this->tourcount)) {
+            $actions[] = new \action_link(
+                $row->get_movedown_link(),
+                get_string('movetourdown', 'tool_usertours'),
+                null,
+                ['disabled' => true],
+                new \pix_icon('t/down', get_string('movetourdown', 'tool_usertours'))
+            );
         } else {
-            $actions[] = helper::format_icon_link($tour->get_movedown_link(), 't/down',
-                    get_string('movetourdown', 'tool_usertours'));
+            $actions[] = new \action_link(
+                $row->get_movedown_link(),
+                get_string('movetourdown', 'tool_usertours'),
+                null,
+                null,
+                new \pix_icon('t/down', get_string('movetourdown', 'tool_usertours'))
+            );
         }
 
-        $actions[] = helper::format_icon_link($tour->get_view_link(), 't/viewdetails', get_string('view'));
-        $actions[] = helper::format_icon_link($tour->get_edit_link(), 't/edit', get_string('edit'));
-        $actions[] = helper::format_icon_link($tour->get_duplicate_link(), 't/copy', get_string('duplicate'));
-        $actions[] = helper::format_icon_link($tour->get_export_link(), 't/export',
-                get_string('exporttour', 'tool_usertours'), 'tool_usertours');
-        $actions[] = helper::format_icon_link($tour->get_delete_link(), 't/delete', get_string('delete'), null, [
-                'data-action'   => 'delete',
-                'data-id'       => $tour->get_id(),
-            ]);
+        $actions[] = new \action_link(
+            $row->get_view_link(),
+            get_string('view'),
+            null,
+            null,
+            new \pix_icon('t/viewdetails', get_string('view'))
+        );
 
-        return implode('&nbsp;', $actions);
+        $actions[] = new \action_link(
+            $row->get_edit_link(),
+            get_string('edit'),
+            null,
+            null,
+            new \pix_icon('t/edit', get_string('edit'))
+        );
+
+        $actions[] = new \action_link(
+            $row->get_duplicate_link(),
+            get_string('duplicate'),
+            null,
+            null,
+            new \pix_icon('t/copy', get_string('duplicate'))
+        );
+
+        $actions[] = new \action_link(
+            $row->get_export_link(),
+            get_string('exporttour', 'tool_usertours'),
+            null,
+            null,
+            new \pix_icon('t/export', get_string('exporttour', 'tool_usertours'), 'tool_usertours')
+        );
+
+        $deleteurl = new \moodle_url('/user/profile.php');
+        $deleteurl->params(['id' => $row->get_id()]);
+
+        $actions[] = new \action_link(
+            $deleteurl,
+            get_string('delete'),
+            new \confirm_action(get_string('areyousure')),
+            null,
+            new \pix_icon('t/delete', get_string('delete'))
+        );
+
+        return $actions;
     }
 }
