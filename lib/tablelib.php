@@ -87,9 +87,14 @@ class flexible_table {
     var $is_sortable    = false;
 
     /**
-     * @var array The fields to sort.
+     * @var string The field name to sort by.
      */
-    protected $sortdata;
+    protected $sortby;
+
+    /**
+     * @var string $sortorder The direction for sorting.
+     */
+    protected $sortorder;
 
     /** @var string The manually set first name initial preference */
     protected $ifirst;
@@ -1296,43 +1301,40 @@ class flexible_table {
      * Calculate the preferences for sort order based on user-supplied values and get params.
      */
     protected function set_sorting_preferences(): void {
-        $sortdata = $this->sortdata;
+        $sortorder = $this->sortorder;
+        $sortby = $this->sortby;
 
-        if ($sortdata === null) {
-            $sortdata = $this->prefs['sortby'];
-
+        if ($sortorder === null || $sortby === null) {
             $sortorder = optional_param($this->request[TABLE_VAR_DIR], $this->sort_default_order, PARAM_INT);
             $sortby = optional_param($this->request[TABLE_VAR_SORT], '', PARAM_ALPHANUMEXT);
-
-            if (array_key_exists($sortby, $sortdata)) {
-                // This key already exists somewhere. Change its sortorder and bring it to the top.
-                //$sortorder = $sortdata[$sortby] = $sortorder;
-                unset($sortdata['sortby'][$sortby]);
-            }
-            $sortdata = array_merge([$sortby => $sortorder], $sortdata);
         }
 
-        $usernamefields = get_all_user_name_fields();
-        $sortdata = array_filter($sortdata, function($sortby) use ($usernamefields) {
-            $isvalidsort = $sortby && $this->is_sortable($sortby);
-            $isvalidsort = $isvalidsort && empty($this->prefs['collapse'][$sortby]);
-            $isrealcolumn = isset($this->columns[$sortby]);
-            $isfullnamefield = isset($this->columns['fullname']) && in_array($sortby, $usernamefields);
+        $isvalidsort = $sortby && $this->is_sortable($sortby);
+        $isvalidsort = $isvalidsort && empty($this->prefs['collapse'][$sortby]);
+        $isrealcolumn = isset($this->columns[$sortby]);
+        $isfullnamefield = isset($this->columns['fullname']) && in_array($sortby, get_all_user_name_fields());
 
-            return $isvalidsort && ($isrealcolumn || $isfullnamefield);
-        }, ARRAY_FILTER_USE_KEY);
+        if ($isvalidsort && ($isrealcolumn || $isfullnamefield)) {
+            if (array_key_exists($sortby, $this->prefs['sortby'])) {
+                // This key already exists somewhere. Change its sortorder and bring it to the top.
+                $sortorder = $this->prefs['sortby'][$sortby] = $sortorder;
+                unset($this->prefs['sortby'][$sortby]);
+                $this->prefs['sortby'] = array_merge(array($sortby => $sortorder), $this->prefs['sortby']);
+            } else {
+                // Key doesn't exist, so just add it to the beginning of the array, ascending order.
+                $this->prefs['sortby'] = array_merge(array($sortby => $sortorder), $this->prefs['sortby']);
+            }
 
-        // Finally, make sure that no more than $this->maxsortkeys are present into the array.
-        $sortdata = array_slice($sortdata, 0, $this->maxsortkeys);
+            // Finally, make sure that no more than $this->maxsortkeys are present into the array.
+            $this->prefs['sortby'] = array_slice($this->prefs['sortby'], 0, $this->maxsortkeys);
+        }
 
         // If a default order is defined and it is not in the current list of order by columns, add it at the end.
         // This prevents results from being returned in a random order if the only order by column contains equal values.
-        if (!empty($this->sort_default_column) && !array_key_exists($this->sort_default_column, $sortdata)) {
-            $sortdata = array_merge($sortdata, [$this->sort_default_column => $this->sort_default_order]);
+        if (!empty($this->sort_default_column) && !array_key_exists($this->sort_default_column, $this->prefs['sortby'])) {
+            $defaultsort = array($this->sort_default_column => $this->sort_default_order);
+            $this->prefs['sortby'] = array_merge($this->prefs['sortby'], $defaultsort);
         }
-
-        // Apply the sortdata to the preference.
-        $this->prefs['sortby'] = $sortdata;
     }
 
     /**
@@ -1429,7 +1431,8 @@ class flexible_table {
 
         // Save user preferences if they have changed.
         if ($this->is_resetting_preferences()) {
-            $this->sortdata = null;
+            $this->sortorder = null;
+            $this->sortby = null;
             $this->ifirst = null;
             $this->ilast = null;
         }
@@ -1499,13 +1502,9 @@ class flexible_table {
      * @param string $sortby The field to sort by.
      * @param int $sortorder The sort order.
      */
-    public function set_sortdata(array $sortdata): void {
-        $this->sortdata = [];
-        foreach ($sortdata as $sortitem) {
-            if (!array_key_exists($sortitem['sortby'], $this->sortdata)) {
-                $this->sortdata[$sortitem['sortby']] = (int) $sortitem['sortorder'];
-            }
-        }
+    public function set_sorting(string $sortby, int $sortorder): void {
+        $this->sortby = $sortby;
+        $this->sortorder = $sortorder;
     }
 
     /**
@@ -1644,27 +1643,20 @@ class flexible_table {
      */
     protected function get_dynamic_table_html_start(): string {
         if (is_a($this, \core_table\dynamic::class)) {
-            $sortdata = array_map(function($sortby, $sortorder) {
-                return [
-                    'sortby' => $sortby,
-                    'sortorder' => $sortorder,
-                ];
-            }, array_keys($this->prefs['sortby']), array_values($this->prefs['sortby']));;
-
+            $sortdata = $this->get_sort_order();
             return html_writer::start_tag('div', [
-                'class' => 'table-dynamic position-relative',
                 'data-region' => 'core_table/dynamic',
                 'data-table-handler' => $this->get_handler(),
                 'data-table-component' => $this->get_component(),
                 'data-table-uniqueid' => $this->uniqueid,
                 'data-table-filters' => json_encode($this->get_filterset()),
-                'data-table-sort-data' => json_encode($sortdata),
+                'data-table-sort-by' => $sortdata['sortby'],
+                'data-table-sort-order' => $sortdata['sortorder'],
                 'data-table-first-initial' => $this->prefs['i_first'],
                 'data-table-last-initial' => $this->prefs['i_last'],
                 'data-table-page-number' => $this->currpage + 1,
                 'data-table-page-size' => $this->pagesize,
                 'data-table-hidden-columns' => json_encode(array_keys($this->prefs['collapse'])),
-                'data-table-total-rows' => $this->totalrows,
             ]);
         }
 
@@ -2103,7 +2095,7 @@ class table_default_export_format_parent {
  */
 class table_dataformat_export_format extends table_default_export_format_parent {
 
-    /** @var \core\dataformat\base $dataformat */
+    /** @var $dataformat */
     protected $dataformat;
 
     /** @var $rownum */
@@ -2136,15 +2128,6 @@ class table_dataformat_export_format extends table_default_export_format_parent 
 
         // Close the session so that the users other tabs in the same session are not blocked.
         \core\session\manager::write_close();
-    }
-
-    /**
-     * Whether the current dataformat supports export of HTML
-     *
-     * @return bool
-     */
-    public function supports_html(): bool {
-        return $this->dataformat->supports_html();
     }
 
     /**
@@ -2218,3 +2201,85 @@ class table_dataformat_export_format extends table_default_export_format_parent 
     }
 }
 
+/**
+ * Adds actions to a flexible_table or table_sql in a
+ * standardized way. Table must follow the convention that
+ * there is a column named 'actions'.
+ *
+ * @package    core
+ * @copyright  2020 onwards Matthew Tolmie
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+trait action_table_trait {
+
+    /**
+     * Called for each data row to allow processing of the actions value.
+     *
+     * @param  object $row
+     * @return string $OUTPUT of the action link created.
+     */
+    public function col_actions($row) {
+        global $OUTPUT;
+
+        $linkarray = $this->get_table_actions($row);
+        $html = '';
+
+        foreach ($linkarray as $link) {
+            $html .= '<span class=text-nowrap>' . $OUTPUT->render($link) . '</span>';
+            $html .= '</br>';
+        }
+
+        return $html;
+    }
+    /**
+     * Should return an array of the table's actions as action_links.
+     * i.e. action_link(url, text, component_action, attributes, icon)
+     *
+     * @param  object $row
+     * @return array  An array of action_links.
+     */
+    abstract public function get_table_actions($row);
+}
+
+/**
+ * Skeleton to extend html_tables to include action_table_trait functionality
+ *
+ * @package    core
+ * @copyright  2020 onwards Matthew Tolmie
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class html_action_table extends html_table {
+    use \action_table_trait;
+
+    /** @var array The actions list for the table */
+    private $actions;
+
+    /**
+     * Return an array of the table's actions as action_links.
+     * i.e. action_link(url, text, component_action, attributes, icon)
+     *
+     * @param  object $row
+     * @return array  An array of action_links.
+     */
+    public function get_table_actions($row) {
+        return $this->actions;
+    }
+
+    /**
+     * Sets the value of the class' $actions variable
+     *
+     * @param array $newactions An array of action_links.
+     */
+    public function set_table_actions($newactions) {
+        $this->actions = $newactions;
+    }
+
+    /**
+     * Appends to the class' $actions variable
+     *
+     * @param action_link $newaction The new action to append.
+     */
+    public function add_table_action($newaction) {
+        array_push($this->actions, $newaction);
+    }
+}
