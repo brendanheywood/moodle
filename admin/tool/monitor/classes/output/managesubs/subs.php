@@ -37,6 +37,7 @@ require_once($CFG->libdir . '/tablelib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class subs extends \table_sql implements \renderable {
+    use \action_table_trait;
 
     /**
      * @var int course id.
@@ -61,7 +62,7 @@ class subs extends \table_sql implements \renderable {
 
         $this->set_attribute('class', 'toolmonitor subscriptions generaltable generalbox');
         $this->define_columns(array('name', 'description', 'course', 'plugin', 'instance', 'eventname',
-            'filters', 'unsubscribe'));
+            'filters', 'actions'));
         $this->define_headers(array(
                 get_string('rulename', 'tool_monitor'),
                 get_string('description'),
@@ -162,19 +163,27 @@ class subs extends \table_sql implements \renderable {
     }
 
     /**
-     * Generate content for unsubscribe column.
+     * Used by the action_table_trait (col_actions function) to
+     * render the table's actions as action_links.
+     * i.e. action_link(url, text, component_action, attributes, icon)
      *
-     * @param \tool_monitor\subscription $sub subscription object
-     * @return string html used to display the unsubscribe field.
+     * @param  object $row
+     * @return array  An array of action_links.
      */
-    public function col_unsubscribe(\tool_monitor\subscription $sub) {
-        global $OUTPUT, $CFG;
+    public function get_table_actions($row) {
+        $unsubscribeurl = new \moodle_url('/admin/tool/monitor/index.php');
+        $unsubscribeurl->params(['subscriptionid' => $row->id, 'action' => 'unsubscribe',
+                            'courseid' => $this->courseid, 'sesskey' => sesskey()]);
 
-        $deleteurl = new \moodle_url($CFG->wwwroot. '/admin/tool/monitor/index.php', array('subscriptionid' => $sub->id,
-                'action' => 'unsubscribe', 'courseid' => $this->courseid, 'sesskey' => sesskey()));
-        $icon = $OUTPUT->render(new \pix_icon('t/delete', get_string('deletesubscription', 'tool_monitor')));
-
-        return \html_writer::link($deleteurl, $icon, array('class' => 'action-icon'));
+        return [
+            new \action_link(
+                $unsubscribeurl,
+                null,
+                null,
+                null,
+                new \pix_icon('t/delete', get_string('deletesubscription', 'tool_monitor'))
+            )
+        ];
     }
 
     /**
