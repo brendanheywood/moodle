@@ -41,6 +41,7 @@ use table_sql;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class cohort_role_assignments_table extends table_sql {
+    use \action_table_trait;
 
     /**
      * Sets up the table.
@@ -107,19 +108,26 @@ class cohort_role_assignments_table extends table_sql {
     }
 
     /**
-     * Actions column.
+     * Used by the action_table_trait (col_actions function) to
+     * render the table's actions as action_links.
+     * i.e. action_link(url, text, component_action, attributes, icon)
      *
-     * @param array $data Row data.
-     * @return string
+     * @param  object $row
+     * @return array  An array of action_links.
      */
-    protected function col_actions($data) {
-        global $OUTPUT;
+    public function get_table_actions($row) {
+        $deleteurl = new moodle_url($this->baseurl);
+        $deleteurl->params(array('removecohortroleassignment' => $data->id, 'sesskey' => sesskey()));
 
-        $action = new \confirm_action(get_string('removecohortroleassignmentconfirm', 'tool_cohortroles'));
-        $url = new moodle_url($this->baseurl);
-        $url->params(array('removecohortroleassignment' => $data->id, 'sesskey' => sesskey()));
-        $pix = new \pix_icon('t/delete', get_string('removecohortroleassignment', 'tool_cohortroles'));
-        return $OUTPUT->action_link($url, '', $action, null, $pix);
+        return [
+            new \action_link(
+                $deleteurl,
+                get_string('removecohortroleassignment'),
+                new \confirm_action(get_string('removecohortroleassignmentconfirm', 'tool_cohortroles')),
+                null,
+                new \pix_icon('t/delete', get_string('removecohortroleassignment', 'tool_cohortroles'))
+            )
+        ];
     }
 
     /**
