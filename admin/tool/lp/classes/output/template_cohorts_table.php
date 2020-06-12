@@ -92,7 +92,7 @@ class template_cohorts_table extends table_sql {
         return [
             new \action_link(
                 $removecohorturl,
-                '',
+                get_string('stopsyncingcohort', 'tool_lp'),
                 new \confirm_action(get_string('areyousure')),
                 null,
                 new \pix_icon('t/delete', get_string('stopsyncingcohort', 'tool_lp'))
