@@ -2222,12 +2222,38 @@ trait action_table_trait {
         global $OUTPUT;
 
         $linkarray = $this->get_table_actions($row);
-        $html = '';
 
+        // Creating the dropdown list
+        $html = '<div class="dropdown">
+            <button class="btn btn-secondary dropdown-toggle" type="button"
+                    id="dropdownMenuButton" data-toggle="dropdown"
+                    aria-haspopup="true" aria-expanded="false">
+                ' . $OUTPUT->render(new \pix_icon('t/edit', get_string('edit'))) . '
+            </button>
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">';
+        
         foreach ($linkarray as $link) {
-            $html .= '<span class=text-nowrap>' . $OUTPUT->render($link) . '</span>';
-            $html .= '</br>';
+            // Defining if the link should be disabled
+            $disabled = '';
+            $attributes = $link->attributes;
+            if (!empty($attributes['disabled']) && $attributes['disabled'] == true) {
+                $disabled = ' disabled';
+            }
+
+            // Checking if an icon is present and rendering an empty one if not
+            if (!$link->icon) {
+                $icon = $OUTPUT->pix_icon('i/empty', '');
+            } else {
+                $icon = $OUTPUT->render($link->icon);
+            }
+
+            // Building the links
+            $html .= '<a class="dropdown-item' . $disabled . '" href="' .
+                        $link->url . '">' . $icon . $link->text . '</a>';
         }
+
+        // Closing the dropdown list
+        $html .= '</div></div>';
 
         return $html;
     }
