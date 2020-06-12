@@ -184,10 +184,10 @@ class rules extends \table_sql implements \renderable {
             return [
                 new \action_link(
                     $options,
+                    $text,
                     null,
                     null,
-                    null,
-                    new \pix_icon('t/add', get_string('subscribeto', 'tool_monitor', $row->get_name($this->context)))
+                    new \pix_icon('t/add', '')
                 )
             ];
         } else {
