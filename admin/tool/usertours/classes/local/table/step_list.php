@@ -167,7 +167,7 @@ class step_list extends \flexible_table {
             new \pix_icon('t/edit', get_string('edit'))
         );
 
-        $deleteurl = new \moodle_url('/user/profile.php');
+        $deleteurl = $row->get_delete_link();
         $deleteurl->params(['id' => $row->get_id()]);
 
         $actions[] = new \action_link(

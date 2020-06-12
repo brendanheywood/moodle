@@ -195,7 +195,7 @@ class tour_list extends \flexible_table {
             new \pix_icon('t/export', get_string('exporttour', 'tool_usertours'), 'tool_usertours')
         );
 
-        $deleteurl = new \moodle_url('/user/profile.php');
+        $deleteurl = $row->get_delete_link();
         $deleteurl->params(['id' => $row->get_id()]);
 
         $actions[] = new \action_link(
