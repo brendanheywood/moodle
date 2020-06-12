@@ -178,7 +178,7 @@ class subs extends \table_sql implements \renderable {
         return [
             new \action_link(
                 $unsubscribeurl,
-                null,
+                get_string('deletesubscription', 'tool_monitor'),
                 null,
                 null,
                 new \pix_icon('t/delete', get_string('deletesubscription', 'tool_monitor'))
