@@ -49,6 +49,7 @@
                 array($module->id));
         core_plugin_manager::reset_caches();
         admin_get_root(true, false);  // settings not required - only pages
+        redirect(new moodle_url('/admin/modules.php'));
     }
 
     if (!empty($show) and confirm_sesskey()) {
@@ -66,6 +67,7 @@
                 array($module->id));
         core_plugin_manager::reset_caches();
         admin_get_root(true, false);  // settings not required - only pages
+        redirect(new moodle_url('/admin/modules.php'));
     }
 
     echo $OUTPUT->header();
@@ -117,8 +119,8 @@
             $count = -1;
         }
         if ($count>0) {
-            $countlink = "<a href=\"{$CFG->wwwroot}/course/search.php?modulelist=$module->name" .
-                "&amp;sesskey=".sesskey()."\" title=\"$strshowmodulecourse\">$count</a>";
+            $countlink = $OUTPUT->action_link(new moodle_url('/course/search.php', ['modulelist' => $module->name]),
+                $count, null, ['title' => $strshowmodulecourse]);
         } else if ($count < 0) {
             $countlink = get_string('error');
         } else {
