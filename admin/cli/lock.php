@@ -114,7 +114,9 @@ if ($lock = $lockfactory->get_lock($resource, $wait)) {
     if (!empty($execute)) {
 
         mtrace("Executing command: `$execute`");
-        echo exec($execute);
+        exec($execute, $output, $status);
+        mtrace("output = $status");
+        mtrace(var_dump($output));
         mtrace('');
         $humantimenow = date('r', time());
         mtrace("Lock '$lockname' released at: {$humantimenow}");
