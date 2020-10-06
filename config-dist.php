@@ -819,6 +819,12 @@ $CFG->admin = 'admin';
 // Example:
 //   $CFG->forced_plugin_settings = array('pluginname'  => array('settingname' => 'value', 'settingname_locked' => true, 'settingname_adv' => true));
 //
+//
+// To avoid a DB lookup on every request you can force the siteidentifier in
+// config.php, and ensure this is globally unique and matches what is in the DB.
+//
+// $CFG->siteidentifier = '...';
+//
 //=========================================================================
 // 9. PHPUNIT SUPPORT
 //=========================================================================

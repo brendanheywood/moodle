@@ -1457,8 +1457,6 @@ function set_config($name, $value, $plugin=null) {
  *
  * NOTE: this function is called from lib/db/upgrade.php
  *
- * @static string|false $siteidentifier The site identifier is not cached. We use this static cache so
- *     that we need only fetch it once per request.
  * @param string $plugin full component name
  * @param string $name default null
  * @return mixed hash-like object or single value, return false no config found
@@ -1467,6 +1465,7 @@ function set_config($name, $value, $plugin=null) {
 function get_config($plugin, $name = null) {
     global $CFG, $DB;
 
+    // We use this static cache so that we need only fetch it once per request.
     static $siteidentifier = null;
 
     if ($plugin === 'moodle' || $plugin === 'core' || empty($plugin)) {
@@ -1484,10 +1483,15 @@ function get_config($plugin, $name = null) {
 
     if ($siteidentifier === null) {
         try {
-            // This may fail during installation.
-            // If you have a look at {@link initialise_cfg()} you will see that this is how we detect the need to
-            // install the database.
-            $siteidentifier = $DB->get_field('config', 'value', array('name' => 'siteidentifier'));
+            if (!empty($CFG->siteidentifier)) {
+                // To avoid a DB lookup on every bootstrap this can be set in config.php
+                // but it must still be unique and match what is in the DB.
+                $siteidentifier = $CFG->siteidentifier;
+            } else {
+                // This may fail during installation. If you have a look at {@see initialise_cfg()}
+                // you will see that this is how we detect the need to install the database.
+                $siteidentifier = $DB->get_field('config', 'value', array('name' => 'siteidentifier'));
+            }
         } catch (dml_exception $ex) {
             // Set siteidentifier to false. We don't want to trip this continually.
             $siteidentifier = false;
