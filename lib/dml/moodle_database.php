@@ -1055,7 +1055,7 @@ abstract class moodle_database {
 
         // Ignore moodle_database internals.
         $callers = array_filter($callers, function($caller) {
-            return empty($caller['class']) || $caller['class'] != 'moodle_database';
+            return empty($caller['file']) || strpos($caller['file'], 'lib/dml') === false;
         });
 
         $callers = array_slice($callers, 0, $level);
