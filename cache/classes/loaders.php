@@ -1717,11 +1717,6 @@ class cache_session extends cache {
     const KEY_PREFIX = 'sess_';
 
     /**
-     * This is the key used to track last access.
-     */
-    const LASTACCESS = '__lastaccess__';
-
-    /**
      * Override the cache::construct method.
      *
      * This function gets overriden so that we can process any invalidation events if need be.
@@ -1741,9 +1736,7 @@ class cache_session extends cache {
         $this->set_session_id();
         parent::__construct($definition, $store, $loader);
 
-        // This will trigger check tracked user. If this gets removed a call to that will need to be added here in its place.
-        $this->set(self::LASTACCESS, cache::now());
-
+        $this->check_tracked_user();
         $this->handle_invalidation_events();
     }
 
@@ -1775,9 +1768,6 @@ class cache_session extends cache {
      */
     protected function parse_key($key) {
         $prefix = $this->get_key_prefix();
-        if ($key === self::LASTACCESS) {
-            return $key.$prefix;
-        }
         return $prefix.'_'.parent::parse_key($key);
     }
 
