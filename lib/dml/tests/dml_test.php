@@ -458,7 +458,7 @@ class core_dml_testcase extends database_driver_testcase {
         global $CFG;
         $DB = $this->tdb;
 
-        require_once($CFG->dirroot . '/lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php');
+        require_once($CFG->dirroot . '/lib/tests/fixtures/test_dml_sql_debugging_fixture.php');
         $fixture = new test_dml_sql_debugging_fixture($this);
 
         $sql = "SELECT * FROM {users}";
@@ -468,20 +468,13 @@ class core_dml_testcase extends database_driver_testcase {
         $CFG->debugsqltrace = 0;
         $this->assertEquals("SELECT * FROM {users}", $out);
 
-        $CFG->debugsqltrace = 1;
+        $CFG->debugsqltrace = 3;
         $out = $fixture->four($sql);
         $expected = <<<EOD
 SELECT * FROM {users}
--- line 65 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
-EOD;
-        $this->assertEquals($this->unix_to_os_dirsep($expected), $out);
-
-        $CFG->debugsqltrace = 2;
-        $out = $fixture->four($sql);
-        $expected = <<<EOD
-SELECT * FROM {users}
--- line 65 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
--- line 74 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->one()
+-- line unknown of unknownfile: call to moodle_database->add_sql_debugging()
+-- line 65 of /lib/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
+-- line 74 of /lib/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->one()
 EOD;
         $this->assertEquals($this->unix_to_os_dirsep($expected), $out);
 
@@ -489,11 +482,11 @@ EOD;
         $out = $fixture->four($sql);
         $expected = <<<EOD
 SELECT * FROM {users}
--- line 65 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
--- line 74 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->one()
--- line 83 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->two()
--- line 92 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->three()
--- line 489 of /lib/dml/tests/dml_test.php: call to test_dml_sql_debugging_fixture->four()
+-- line unknown of unknownfile: call to moodle_database->add_sql_debugging()
+-- line 65 of /lib/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
+-- line 74 of /lib/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->one()
+-- line 83 of /lib/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->two()
+-- line 92 of /lib/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->three()
 EOD;
         $this->assertEquals($this->unix_to_os_dirsep($expected), $out);
 
