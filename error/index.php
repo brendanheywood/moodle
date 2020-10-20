@@ -31,6 +31,18 @@
 require('../config.php');
 // @codingStandardsIgnoreEnd
 
+// Allow plugins to handle /.well-known/ urls.
+$local = (new moodle_url($FULLME))->out_as_local_url();
+if (strpos($local, '/.well-known/') === 0) {
+
+    $types = get_plugins_with_function('route_wellknown', 'lib.php');
+    foreach ($types as $plugintype => $plugins) {
+        foreach ($plugins as $pluginfunction) {
+            $pluginfunction($local);
+        }
+    }
+}
+
 $context = context_system::instance();
 $title = get_string('pagenotexisttitle', 'error');
 $PAGE->set_url('/error/index.php');
