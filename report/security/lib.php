@@ -32,6 +32,11 @@ function report_security_route_wellknown(string $route) {
 
     global $CFG;
 
+    // See https://w3c.github.io/webappsec-change-password-url/
+    if (strpos($route, '/.well-known/change-password') === 0) {
+        redirect(new moodle_url('/login/change_password.php'));
+    }
+
     // Generates a /.well-known/security.txt file
     // See also https://securitytxt.org/
     if (strpos($route, '/.well-known/security.txt') === 0) {
