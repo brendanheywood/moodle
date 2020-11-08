@@ -19,7 +19,7 @@
  *
  * This script is not compatible with IPv6.
  *
- * @package    core_iplookup
+ * @package    core
  * @copyright  2008 Petr Skoda (http://skodak.org)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -38,11 +38,11 @@ $user = optional_param('user', 0, PARAM_INT);
 
 if (isset($CFG->iplookup)) {
     // Clean up of old settings.
-    set_config('iplookup', NULL);
+    set_config('iplookup', null);
 }
 
-$PAGE->set_url('/iplookup/index.php', array('id'=>$ip, 'user'=>$user));
-$PAGE->set_pagelayout('popup');
+$PAGE->set_url('/iplookup/index.php', ['id' => $ip, 'user' => $user]);
+$PAGE->set_pagelayout('report');
 $PAGE->set_context(context_system::instance());
 
 $info = array($ip);
@@ -52,58 +52,76 @@ if (cleanremoteaddr($ip) === false) {
     print_error('invalidipformat', 'error');
 }
 
-if (!ip_is_public($ip)) {
-    print_error('iplookupprivate', 'error');
-}
-
-$info = iplookup_find_location($ip);
-
-if ($info['error']) {
-    // Can not display.
-    notice($info['error']);
+if (ip_is_public($ip)) {
+    $info = iplookup_find_location($ip);
+    array_unshift($info['title'], $ip);
+    $title = implode(' - ', $info['title']);
+} else {
+    $info = [
+        'error'  => get_string('iplookupprivate', 'error'),
+        'note'  => '',
+    ];
+    $title  = "$ip - " . get_string('iplookupprivate', 'error');
 }
 
 if ($user) {
-    if ($user = $DB->get_record('user', array('id'=>$user, 'deleted'=>0))) {
-        // note: better not show full names to everybody
+    if ($user = $DB->get_record('user', ['id' => $user, 'deleted' => 0])) {
+        // Note: better not show full names to everybody.
         if (has_capability('moodle/user:viewdetails', context_user::instance($user->id))) {
-            array_unshift($info['title'], fullname($user));
+            $title .= ' - ' . fullname($user);
         }
     }
 }
-array_unshift($info['title'], $ip);
 
-$title = implode(' - ', $info['title']);
 $PAGE->set_title(get_string('iplookup', 'admin').': '.$title);
 $PAGE->set_heading($title);
 echo $OUTPUT->header();
 
-if (empty($CFG->googlemapkey3)) {
-    $imgwidth  = 620;
-    $imgheight = 310;
-    $dotwidth  = 18;
-    $dotheight = 30;
-
-    $dx = round((($info['longitude'] + 180) * ($imgwidth / 360)) - $imgwidth - $dotwidth/2);
-    $dy = round((($info['latitude'] + 90) * ($imgheight / 180)));
-
-    echo '<div id="map" style="width:'.($imgwidth+$dotwidth).'px; height:'.$imgheight.'px;">';
-    echo '<img src="earth.jpeg" style="width:'.$imgwidth.'px; height:'.$imgheight.'px" alt="" />';
-    echo '<img src="marker.gif" style="width:'.$dotwidth.'px; height:'.$dotheight.'px; margin-left:'.$dx.'px; margin-bottom:'.$dy.'px;" alt="" />';
-    echo '</div>';
-    echo '<div id="note">'.$info['note'].'</div>';
-
-} else {
-    if (is_https()) {
-        $PAGE->requires->js(new moodle_url('https://maps.googleapis.com/maps/api/js', array('key'=>$CFG->googlemapkey3, 'sensor'=>'false')));
-    } else {
-        $PAGE->requires->js(new moodle_url('http://maps.googleapis.com/maps/api/js', array('key'=>$CFG->googlemapkey3, 'sensor'=>'false')));
-    }
-    $module = array('name'=>'core_iplookup', 'fullpath'=>'/iplookup/module.js');
-    $PAGE->requires->js_init_call('M.core_iplookup.init3', array($info['latitude'], $info['longitude'], $ip), true, $module);
-
-    echo '<div id="map" style="width: 650px; height: 360px"></div>';
-    echo '<div id="note">'.$info['note'].'</div>';
+if (!empty($info['error'])) {
+    echo $OUTPUT->notification($info['error'],  \core\notification::ERROR);
 }
+
+if (isset($info['longitude']) && isset($info['latitude'])) {
+    if (empty($CFG->googlemapkey3)) {
+        $imgwidth  = 620;
+        $imgheight = 310;
+        $dotwidth  = 18;
+        $dotheight = 30;
+
+        $ml = -$dotwidth / 2;
+        $mt = -$dotheight;
+
+        $dx = sprintf('%.1f', (180 + $info['longitude']) / 360 * 100 );
+        $dy = sprintf('%.1f',  (90 - $info['latitude'] ) / 180 * 100 );
+
+        echo html_writer::start_tag('div', ['style' => "max-width:{$imgwidth}px; position: relative;"]);
+        echo html_writer::img('earth.jpeg', '', [
+            'width' => '100%',
+            'height' => '100%',
+            'alt' => '',
+        ]);
+        echo html_writer::img('marker.gif', $title, [
+            'style' => "position: absolute; width:{$dotwidth}px; height:{$dotheight}px;"
+                . " left: {$dx}%; top: {$dy}%; margin-left:{$ml}px; margin-top:{$mt}px;",
+            'title' => $title,
+        ]);
+        echo html_writer::end_tag('div');
+
+    } else {
+        if (is_https()) {
+            $PAGE->requires->js(new moodle_url('https://maps.googleapis.com/maps/api/js',
+                ['key' => $CFG->googlemapkey3, 'sensor' => 'false']));
+        } else {
+            $PAGE->requires->js(new moodle_url('http://maps.googleapis.com/maps/api/js',
+                ['key' => $CFG->googlemapkey3, 'sensor' => 'false']));
+        }
+        $module = ['name' => 'core_iplookup', 'fullpath' => '/iplookup/module.js'];
+        $PAGE->requires->js_init_call('M.core_iplookup.init3', array($info['latitude'], $info['longitude'], $ip), true, $module);
+
+        echo '<div id="map" style="width: 650px; height: 360px"></div>';
+    }
+}
+
+echo html_writer::tag('div', $info['note'], ['id' => 'note']);
 
 echo $OUTPUT->footer();
