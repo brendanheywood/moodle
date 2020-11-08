@@ -16,7 +16,6 @@ Feature: User must accept policy when logging in and signing up
       | Username      | user1                 |
       | Password      | user1                 |
       | Email address | user1@address.invalid |
-      | Email (again) | user1@address.invalid |
       | First name    | User1                 |
       | Surname       | L1                    |
     And I press "Create my new account"
@@ -46,7 +45,6 @@ Feature: User must accept policy when logging in and signing up
       | Username      | user1                 |
       | Password      | user1                 |
       | Email address | user1@address.invalid |
-      | Email (again) | user1@address.invalid |
       | First name    | User1                 |
       | Surname       | L1                    |
       | I understand and agree | 1            |
@@ -79,7 +77,6 @@ Feature: User must accept policy when logging in and signing up
       | Username      | s2      |
       | Password      | test    |
       | Email address | <email1> |
-      | Email (again) | <email2> |
       | First name    | Jane    |
       | Surname       | Doe     |
     And I press "Create my new account"
