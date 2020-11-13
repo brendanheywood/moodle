@@ -340,7 +340,7 @@ class report_log_table_log extends table_sql {
      */
     protected function action_link(moodle_url $url, $text, $name = 'popup') {
         global $OUTPUT;
-        $link = new action_link($url, $text, new popup_action('click', $url, $name, array('height' => 440, 'width' => 700)));
+        $link = new action_link($url, $text);
         return $OUTPUT->render($link);
     }
 
