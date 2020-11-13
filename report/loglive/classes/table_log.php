@@ -275,11 +275,12 @@ class report_loglive_table_log extends table_sql {
      * @return string HTML for the ip column
      */
     public function col_ip($event) {
+        global $OUTPUT;
         // Get extra event data for origin and realuserid.
         $logextra = $event->get_logextra();
 
         $url = new moodle_url("/iplookup/index.php?ip={$logextra['ip']}&user=$event->userid");
-        return $this->action_link($url, $logextra['ip'], 'ip');
+        return $OUTPUT->action_link($url, $logextra['ip']);
     }
 
     /**
