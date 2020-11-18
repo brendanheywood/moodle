@@ -9836,7 +9836,70 @@ function get_performance_info() {
         $info['txt'] .= 'Caches used (hits/misses/sets): 0/0/0 ';
     }
 
+    $filepaths = \core\local\stream\fileio_wrapper::get_perf_stats();
+
+    $stats = 0;
+    $misses = 0;
+    $reads = 0;
+    $writes = 0;
+    $bytes = 0;
+
+    $table = new html_table();
+    $table->attributes['class'] = 'pathssused table table-dark table-sm w-auto table-bordered';
+    $table->head = ['Directory', 'Stats', 'Misses', 'Reads', 'Writes', get_string('sizekb')];
+    $table->data = [];
+    $table->align = ['left', 'right', 'right', 'right', 'right', 'right'];
+
+    foreach ($filepaths as $path => $data) {
+        $stats  += $data['stat'];
+        $misses += $data['miss'];
+        $reads  += $data['read'];
+        $writes += $data['write'];
+        $bytes  += $data['bytes'];
+        $row = [];
+
+        if ($path == 'dataroot' && ($data['read'] > 0 || $data['write'])) {
+            $class = 'nohits bg-danger';
+        } else if ($data['write'] > 0) {
+            $class = 'lowhits bg-warning text-dark';
+        } else {
+            $class = 'hihits';
+        }
+
+        $cell = new html_table_cell($path ?: 'other');
+        $cell->attributes = ['class' => $class];
+        $row[] = $cell;
+        $cell = new html_table_cell($data['stat']);
+        $cell->attributes = ['class' => $class];
+        $row[] = $cell;
+        $cell = new html_table_cell($data['miss']);
+        $cell->attributes = ['class' => $class];
+        $row[] = $cell;
+        $cell = new html_table_cell($data['read']);
+        $cell->attributes = ['class' => $class];
+        $row[] = $cell;
+        $cell = new html_table_cell($data['write']);
+        $cell->attributes = ['class' => $class];
+        $row[] = $cell;
+        $cell = new html_table_cell(sprintf("%.1f", $data['bytes'] / 1024));
+        $cell->attributes = ['class' => $class];
+        $row[] = $cell;
+        $table->data[] = $row;
+    }
+
+    $row = [
+        get_string('total'),
+        $stats,
+        $misses,
+        $reads,
+        $writes,
+        sprintf("%.1f", $bytes / 1024),
+    ];
+    $table->data[] = $row;
+    $info['html'] .= html_writer::table($table);
+
     $info['html'] = '<div class="performanceinfo siteinfo container-fluid px-md-0 overflow-auto mt-3">'.$info['html'].'</div>';
+
     return $info;
 }
 

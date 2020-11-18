@@ -487,6 +487,13 @@ $CFG->admin = 'admin';
 //
 //     $CFG->backuptempdir = '/var/www/moodle/backuptemp';  // Directory MUST BE SHARED by all cluster nodes.
 //
+// Enable verbose debug information of file IO. Can be a number from 1 - 15 and the higher
+// number the more verbose the debugging.
+//
+//     $CFG->debugfileio = 3;          // 1 = write, 2 = miss, 3 = read, 4 = stat, 5 = bytes, 10 = non shared disk
+//                                     // eg 2 will show writes and misses, 15 will show everything.
+//     $CFG->debugfileiostacksize = 5; // How many lines of stacktrace to show. Defaults to 1.
+//
 // Some filesystems such as NFS may not support file locking operations.
 // Locking resolves race conditions and is strongly recommended for production servers.
 //     $CFG->preventfilelocking = false;

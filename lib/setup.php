@@ -545,6 +545,15 @@ $CFG->httpswwwroot = $CFG->wwwroot;
 
 require_once($CFG->libdir .'/setuplib.php');        // Functions that MUST be loaded first
 
+// If this is set in config.php we can start the file instrumenting even earlier
+// to capture more of the critical bootstrap file IO.
+if (isset($CFG->debugfileio) && $CFG->debugfileio) {
+    // We don't have a class loader yet so manually require the bare minimum.
+    require_once($CFG->libdir . '/classes/local/stream/stream_wrapper_base.php');
+    require_once($CFG->libdir . '/classes/local/stream/fileio_wrapper.php');
+    \core\local\stream\fileio_wrapper::enable();
+}
+
 if (NO_OUTPUT_BUFFERING) {
     // we have to call this always before starting session because it discards headers!
     disable_output_buffering();
@@ -594,6 +603,7 @@ ini_set('include_path', $CFG->libdir.'/pear' . PATH_SEPARATOR . ini_get('include
 
 // Register our classloader, in theory somebody might want to replace it to load other hacked core classes.
 if (defined('COMPONENT_CLASSLOADER')) {
+
     spl_autoload_register(COMPONENT_CLASSLOADER);
 } else {
     spl_autoload_register('core_component::classloader');
@@ -656,6 +666,12 @@ if (PHPUNIT_TEST) {
     phpunit_util::initialise_cfg();
 } else {
     initialise_cfg();
+}
+
+if (isset($CFG->perfdebug) && $CFG->perfdebug) {
+    // Start instrumenting all the file IO as early as possible to capture
+    // as much of the bootstrap file IO.
+    \core\local\stream\fileio_wrapper::enable();
 }
 
 if (isset($CFG->debug)) {
