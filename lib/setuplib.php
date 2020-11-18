@@ -548,19 +548,8 @@ function get_exception_info($ex) {
     }
 
     // Remove some absolute paths from message and debugging info.
-    $searches = array();
-    $replaces = array();
-    $cfgnames = array('backuptempdir', 'tempdir', 'cachedir', 'localcachedir', 'themedir', 'dataroot', 'dirroot');
-    foreach ($cfgnames as $cfgname) {
-        if (property_exists($CFG, $cfgname)) {
-            $searches[] = $CFG->$cfgname;
-            $replaces[] = "[$cfgname]";
-        }
-    }
-    if (!empty($searches)) {
-        $message   = str_replace($searches, $replaces, $message);
-        $debuginfo = str_replace($searches, $replaces, $debuginfo);
-    }
+    $message   = core\files\path_utils::redact_paths($message);
+    $debuginfo = core\files\path_utils::redact_paths($debuginfo);
 
     // Be careful, no guarantee weblib.php is loaded.
     if (function_exists('clean_text')) {
