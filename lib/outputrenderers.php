@@ -4767,6 +4767,23 @@ EOD;
     }
 
     /**
+     * Renders an update to a progress bar.
+     *
+     * Note: This does not cleanly map to a renderable class and should
+     * never be used directly.
+     *
+     * @param  string id
+     * @param  float $perfect
+     * @param  string $msg Message
+     * @param  string $estimate time remaining message
+     * @return string ascii fragment
+     */
+    public function render_progress_bar_update(string $id, float $percent, string $msg, string $estimate) {
+        return html_writer::script(js_writer::function_call('updateProgressBar',
+            array($id, $percent, $msg, $estimate)));
+    }
+
+    /**
      * Renders element for a toggle-all checkbox.
      *
      * @param \core\output\checkbox_toggleall $element
@@ -4832,6 +4849,54 @@ class core_renderer_cli extends core_renderer {
      */
     public function check_result(core\check\result $result) {
         return $this->render_check_result($result);
+    }
+
+    /**
+     * Renders a progress bar.
+     *
+     * Do not use $OUTPUT->render($bar), instead use progress_bar::create().
+     *
+     * @param  progress_bar $bar The bar.
+     * @return string ascii fragment
+     */
+    public function render_progress_bar(progress_bar $bar) {
+        $size = 55; // The width of the progress bar in chars.
+        $ascii = "\n";
+        $ascii .= "[" . str_repeat('-', $size) . "] 0% \n";
+        return cli_ansi_format($ascii);
+    }
+
+    /**
+     * Renders an update to a progress bar.
+     *
+     * Note: This does not cleanly map to a renderable class and should
+     * never be used directly.
+     *
+     * @param  string id
+     * @param  float $perfect
+     * @param  string $msg Message
+     * @param  string $estimate time remaining message
+     * @return string ascii fragment
+     */
+    public function render_progress_bar_update(string $id, float $percent, string $msg, string $estimate) {
+        $size = 55; // The width of the progress bar in chars.
+        $done = round($percent * $size * 0.01);
+        $rest = $size - $done;
+        $colour = $percent ==  100 ? 'green' : 'blue';
+        // $done = "<colour:$colour>" . str_repeat('|', $done);
+        $done = "<colour:$colour>" . str_repeat('█', $done);
+        $rest = '<colour:normal>' . str_repeat('-', $rest);
+
+        if ($estimate) {
+            $estimate = "- $estimate";
+        }
+
+        $ascii = '';
+        $ascii .= '<cursor:up>';
+        $ascii .= '<cursor:up>';
+        $ascii .= sprintf("%-80s\n", $msg);
+        $ascii .= sprintf("[$done$rest] %3.1f%% %-22s\n", $percent, $estimate);
+        return cli_ansi_format($ascii);
     }
 
     /**
