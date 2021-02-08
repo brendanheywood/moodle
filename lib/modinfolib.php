@@ -459,7 +459,10 @@ class course_modinfo {
                 // somebody else, who might have been holding the lock, built it already).
                 $coursemodinfo = $cachecoursemodinfo->get($course->id);
                 if ($coursemodinfo === false || ($course->cacherev != $coursemodinfo->cacherev)) {
+                    $start = microtime(true);
                     $coursemodinfo = self::inner_build_course_cache($course, $lock);
+                    $end = microtime(true);
+                    error_log(sprintf("BUILD CACHE id=$course->id in %.01f secs ", $end - $start));
                 }
             } finally {
                 $lock->release();

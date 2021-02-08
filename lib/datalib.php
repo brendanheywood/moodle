@@ -1132,7 +1132,10 @@ function get_scales_menu($courseid=0) {
  * @param array $params optional select parameters
  */
 function increment_revision_number($table, $field, $select, array $params = null) {
-    global $DB;
+    global $DB, $FULLME;
+
+    $backtrace  = format_backtrace(debug_backtrace(), true);
+    error_log("increment_revision_numer $FULLME $table $field $select\n$backtrace\n " . print_r($params, 1));
 
     $now = time();
     $sql = "UPDATE {{$table}}
