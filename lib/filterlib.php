@@ -787,23 +787,25 @@ function filter_get_globally_enabled() {
 function filter_get_globally_enabled_filters_with_config() {
     global $DB;
 
-    $sql = "SELECT f.filter, fc.name, fc.value
+    $uniqueid = $DB->sql_concat('f.filter', "'-'", "COALESCE(fc.name, '')", "'-'", "COALESCE(fc.value, '')");
+    $sql = "SELECT $uniqueid AS uniqueid,
+                   f.filter,
+                   fc.name,
+                   fc.value
               FROM {filter_active} f
-         LEFT JOIN {filter_config} fc
-                ON fc.filter = f.filter
-               AND fc.contextid = f.contextid
+         LEFT JOIN {filter_config} fc ON fc.filter = f.filter AND fc.contextid = f.contextid
              WHERE f.contextid = :contextid
                AND f.active != :disabled
           ORDER BY f.sortorder";
 
-    $rs = $DB->get_recordset_sql($sql, [
+    $records = $DB->get_records_sql($sql, [
         'contextid' => context_system::instance()->id,
         'disabled' => TEXTFILTER_DISABLED
     ]);
 
     // Massage the data into the specified format to return.
     $filters = array();
-    foreach ($rs as $row) {
+    foreach ($records as $row) {
         if (!isset($filters[$row->filter])) {
             $filters[$row->filter] = array();
         }
@@ -811,7 +813,6 @@ function filter_get_globally_enabled_filters_with_config() {
             $filters[$row->filter][$row->name] = $row->value;
         }
     }
-    $rs->close();
 
     return $filters;
 }
@@ -1013,21 +1014,26 @@ function filter_get_active_in_context($context) {
 
     // The following SQL is tricky. It is explained on
     // http://docs.moodle.org/dev/Filter_enable/disable_by_context.
-    $sql = "SELECT active.filter, fc.name, fc.value
-         FROM (SELECT f.filter, MAX(f.sortorder) AS sortorder
-             FROM {filter_active} f
-             JOIN {context} ctx ON f.contextid = ctx.id
-             WHERE ctx.id IN ($contextids)
+    $uniqueid = $DB->sql_concat('active.filter', "'-'", "COALESCE(fc.name, '')", "'-'", "COALESCE(fc.value, '')");
+    $sql = "SELECT $uniqueid AS uniqueid,
+                   active.filter,
+                   fc.name,
+                   fc.value
+         FROM (SELECT f.filter,
+                      MAX(f.sortorder) AS sortorder
+                 FROM {filter_active} f
+                 JOIN {context} ctx ON f.contextid = ctx.id
+                WHERE ctx.id IN ($contextids)
              GROUP BY filter
-             HAVING MAX(f.active * ctx.depth) > -MIN(f.active * ctx.depth)
+               HAVING MAX(f.active * ctx.depth) > -MIN(f.active * ctx.depth)
          ) active
          LEFT JOIN {filter_config} fc ON fc.filter = active.filter AND fc.contextid = $context->id
          ORDER BY active.sortorder";
-    $rs = $DB->get_recordset_sql($sql);
+    $records = $DB->get_records_sql($sql);
 
     // Massage the data into the specified format to return.
     $filters = array();
-    foreach ($rs as $row) {
+    foreach ($records as $row) {
         if (!isset($filters[$row->filter])) {
             $filters[$row->filter] = array();
         }
@@ -1035,9 +1041,6 @@ function filter_get_active_in_context($context) {
             $filters[$row->filter][$row->name] = $row->value;
         }
     }
-
-    $rs->close();
-
     return $filters;
 }
 
