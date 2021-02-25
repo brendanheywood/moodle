@@ -356,14 +356,17 @@ class api {
         $fields = 'f.*, ' . join(', ', array_map(function($field) {
                 return "c.$field AS category_$field";
         }, array_diff(array_keys(category::properties_definition()), ['usermodified', 'timemodified'])));
-        $sql = "SELECT $fields
+        $uniqueid = $DB->sql_concat('c.id', "'-'", "COALESCE(f.id, 0)");
+        $sql = "SELECT $uniqueid AS uniqueid,
+                       $fields
                   FROM {customfield_category} c
              LEFT JOIN {customfield_field} f ON c.id = f.categoryid AND f.type $sqlfields
                  WHERE c.component = :component AND c.area = :area AND c.itemid = :itemid
               ORDER BY c.sortorder, f.sortorder";
-        $fieldsdata = $DB->get_recordset_sql($sql, $options + $params);
+        $fieldsdata = $DB->get_records_sql($sql, $options + $params);
 
         foreach ($fieldsdata as $data) {
+            unset($data->uniqueid);
             if (!array_key_exists($data->category_id, $categories)) {
                 $categoryobj = new \stdClass();
                 foreach ($data as $key => $value) {
@@ -386,8 +389,6 @@ class api {
                 $field = field_controller::create(0, $fieldobj, $category);
             }
         }
-        $fieldsdata->close();
-
         return $categories;
     }
 
