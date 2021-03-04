@@ -651,6 +651,17 @@ if (PHPUNIT_TEST and !PHPUNIT_UTIL) {
     unset($dbhash);
 }
 
+// Load any immutable boostrap config from local cache.
+$bootstrapcachefile = $CFG->localcachedir . '/bootstrap.php';
+if (is_readable($bootstrapcachefile)) {
+    try {
+        require_once($bootstrapcachefile);
+    } catch (Throwable $e) {
+        // If it is corrupted then attempt to delete it and it will be rebuild.
+        @unlink($bootstrapcachefile);
+    }
+}
+
 // Load up any configuration from the config table or MUC cache.
 if (PHPUNIT_TEST) {
     phpunit_util::initialise_cfg();
@@ -1054,6 +1065,20 @@ if (false) {
     $DB = new moodle_database();
     $OUTPUT = new core_renderer(null, null);
     $PAGE = new moodle_page();
+}
+
+// Cache any immutable config locally to avoid constant DB lookups.
+if (!empty($CFG->siteidentifier) && !file_exists($bootstrapcachefile)) {
+    $contents = "<?php\n";
+    $contents .= "// ********** This file is generated DO NOT EDIT **********\n";
+    $contents .= "\$CFG->siteidentifier = '" . addslashes($CFG->siteidentifier) . "';\n";
+    $contents .= "define('SYSCONTEXTID', " . SYSCONTEXTID . ");\n";
+
+    $temp = $bootstrapcachefile . '.tmp' . uniqid();
+    file_put_contents($temp, $contents);
+    $filepermissions = !isset($CFG->filepermissions) ? ($dirpermissions & 0666) : $CFG->filepermissions;
+    @chmod($temp, $filepermissions);
+    rename($temp, $bootstrapcachefile);
 }
 
 // Allow plugins to callback as soon possible after setup.php is loaded.
