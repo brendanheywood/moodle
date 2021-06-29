@@ -487,6 +487,38 @@ $CFG->admin = 'admin';
 //
 //     $CFG->backuptempdir = '/var/www/moodle/backuptemp';  // Directory MUST BE SHARED by all cluster nodes.
 //
+// Enable verbose debug information of file IO. This value is a bitmap so you
+// can turn on and off exactly what you want. The lower 6 bits (1-32) apply to
+// the IO on shared file system inside dataroot and the higher bits (64-2048)
+// are anything else which we assume can be local disk. A convenient way to
+// start is with a value of -1 which logs everything and then you can use the
+// values shown in the logs to add or remove other bits.
+//
+//     $CFG->debugfileio = 1 + 4;     // Log shared reads & writes.
+//     $CFG->debugfileio = -1 - 1024; // Log everything except local reads.
+//
+//      1 = write,   2 = miss,   4 = read,   8 = stat,   16 = bytesread,   32 = byteswrite
+//     64 = write, 128 = miss, 256 = read, 512 = stat, 1024 = bytesread, 2048 = byteswrite
+//
+// How many lines of stacktrace to show when debugfileio is on. Defaults to 1.
+//
+//     $CFG->debugfileiostacksize = 5;
+//
+// This is a way of adding artificial delays to the various file IO operations.
+// The keys in the array match the bitmap values above, and the values are all
+// in milliseconds. Note that the bytesread and byteswrite values are the delay
+// for each chunk in the stream. This depends on stream_set_chunk_size and
+// typically defaults to 8kb. The values below are a reasonable approximation
+// of the extra latency of a slow remote filesystem. If you are debugging file
+// writing race conditions increase the latency much more.
+//
+//     $CFG->debugfileiodelay = [
+//         4   => 0.1, // Add a 100 microsecond read cost.
+//         8   => 0.1, // Add a 100 microsecond stat cost.
+//         16  => 0.1, // Add 100 microseconds for every chunk of bytes read.
+//         32  => 2,   // Add 2 milliseconds for every chunk of bytes written.
+//     ];
+//
 // Some filesystems such as NFS may not support file locking operations.
 // Locking resolves race conditions and is strongly recommended for production servers.
 //     $CFG->preventfilelocking = false;
