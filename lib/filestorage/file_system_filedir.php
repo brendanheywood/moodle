@@ -376,35 +376,34 @@ class file_system_filedir extends file_system {
         }
 
         // Let's try to prevent some race conditions.
+        $hashfiletmp = $hashfile . '.tmp' . uniqid();
 
         $prev = ignore_user_abort(true);
-        if (file_exists($hashfile.'.tmp')) {
-            @unlink($hashfile.'.tmp');
-        }
-        if (!copy($pathname, $hashfile.'.tmp')) {
+        if (!copy($pathname, $hashfiletmp)) {
             // Borked permissions or out of disk space.
-            @unlink($hashfile.'.tmp');
+            @unlink($hashfiletmp);
             ignore_user_abort($prev);
             throw new file_exception('storedfilecannotcreatefile');
         }
-        if (file_storage::hash_from_path($hashfile.'.tmp') !== $contenthash) {
+        if (file_storage::hash_from_path($hashfiletmp) !== $contenthash) {
             // Highly unlikely edge case, but this can happen on an NFS volume with no space remaining.
-            @unlink($hashfile.'.tmp');
+            @unlink($hashfiletmp);
             ignore_user_abort($prev);
             throw new file_exception('storedfilecannotcreatefile');
         }
-        if (!rename($hashfile.'.tmp', $hashfile)) {
+        if (!rename($hashfiletmp, $hashfile)) {
             // Something very strange went wrong.
-            @unlink($hashfile . '.tmp');
+            @unlink($hashfiletmp);
             // Note, we don't try to clean up $hashfile. Almost certainly, if it exists
             // (e.g. written by another process?) it will be right, so don't wipe it.
             ignore_user_abort($prev);
             throw new file_exception('storedfilecannotcreatefile');
         }
-        chmod($hashfile, $this->filepermissions); // Fix permissions if needed.
-        if (file_exists($hashfile.'.tmp')) {
+        chmod($hashfiletmp, $this->filepermissions); // Fix permissions if needed.
+        rename($hashfiletmp, $hashfile);
+        if (file_exists($hashfiletmp)) {
             // Just in case anything fails in a weird way.
-            @unlink($hashfile.'.tmp');
+            @unlink($hashfiletmp);
         }
         ignore_user_abort($prev);
 
