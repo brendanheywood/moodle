@@ -620,6 +620,16 @@ if (defined('ABORT_AFTER_CONFIG')) {
 
 require_once($CFG->libdir .'/setuplib.php');        // Functions that MUST be loaded first.
 
+// If this is set in config.php we can start the file instrumenting even earlier
+// to capture more of the critical bootstrap file IO.
+if ((isset($CFG->debugfileio) && $CFG->debugfileio) ||
+    isset($CFG->debugfileiodelay)) {
+    // We don't have a class loader yet so manually require the bare minimum.
+    require_once($CFG->libdir . '/classes/local/stream/stream_wrapper_base.php');
+    require_once($CFG->libdir . '/classes/local/stream/fileio_wrapper.php');
+    \core\local\stream\fileio_wrapper::enable();
+}
+
 // Load up standard libraries.
 require_once($CFG->libdir .'/filterlib.php');       // Functions for filtering test as it is output.
 require_once($CFG->libdir .'/weblib.php');          // Functions relating to HTTP and content.
@@ -739,6 +749,12 @@ if (PHPUNIT_TEST) {
     phpunit_util::initialise_cfg();
 } else {
     initialise_cfg();
+}
+
+if (isset($CFG->perfdebug) && $CFG->perfdebug) {
+    // Start instrumenting all the file IO as early as possible to capture
+    // as much of the bootstrap file IO.
+    \core\local\stream\fileio_wrapper::enable();
 }
 
 if (isset($CFG->debug)) {
