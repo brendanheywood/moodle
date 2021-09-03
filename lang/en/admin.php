@@ -265,6 +265,12 @@ $string['configgetremoteaddrconf'] = 'If your server is behind a reverse proxy, 
 $string['configgradebookroles'] = 'This setting allows you to control who appears on the gradebook.  Users need to have at least one of these roles in a course to be shown in the gradebook for that course.';
 $string['configgradeexport'] = 'Choose which gradebook export formats are your primary methods for exporting grades.  Chosen plugins will then set and use a "last exported" field for every grade.  For example, this might result in exported records being identified as being "new" or "updated".  If you are not sure about this then leave everything unchecked.';
 $string['confighiddenuserfields'] = 'Select which user information fields you wish to hide from other users other than course teachers/admins. This will increase student privacy. Hold CTRL key to select multiple fields.';
+$string['configdebugideurlscheme'] = 'When this url scheme is configured then source file paths shown in stacktraces are links which open in your IDE. Example\'s for popular IDE\'s include:
+<pre>vscode://file{file}:{line}
+phpstorm://open?{file}:{line}
+txmt://open?line={line}&url=file://{file}
+atom://open?url=file://{file}&line={line}
+</pre>';
 $string['configidnumber'] = 'This option specifies whether (a) Users are not be asked for an ID number at all, (b) Users are asked for an ID number but can leave it blank or (c) Users are asked for an ID Number and cannot leave it blank. If given the User\'s ID number is displayed in their Profile.';
 $string['configintro'] = 'On this page you can specify a number of configuration variables that help make Moodle work properly on your server.  Don\'t worry too much about it - the defaults will usually work fine and you can always come back to this page later and change these settings.';
 $string['configintroadmin'] = 'On this page you should configure your main administrator account which will have complete control over the site. Make sure you give it a secure username and password as well as a valid email address.  You can create more admin accounts later on.';
@@ -464,6 +470,7 @@ $string['debug'] = 'Debug messages';
 $string['debugall'] = 'ALL: Show all reasonable PHP debug messages';
 $string['debugdeveloper'] = 'DEVELOPER: extra Moodle debug messages for developers';
 $string['debugdisplay'] = 'Display debug messages';
+$string['debugideurlscheme'] = 'IDE url scheme';
 $string['debugging'] = 'Debugging';
 $string['debugminimal'] = 'MINIMAL: Show only fatal errors';
 $string['debugnone'] = 'NONE: Do not show any errors or warnings';

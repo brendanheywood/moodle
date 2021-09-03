@@ -704,7 +704,9 @@ function get_docs_url($path = null) {
  * @return string formatted backtrace, ready for output.
  */
 function format_backtrace($callers, $plaintext = false) {
-    // do not use $CFG->dirroot because it might not be available in destructors
+
+    global $CFG;
+    // Do not use $CFG->dirroot because it might not be available in destructors.
     $dirroot = dirname(__DIR__);
 
     if (empty($callers)) {
@@ -713,14 +715,26 @@ function format_backtrace($callers, $plaintext = false) {
 
     $from = $plaintext ? '' : '<ul style="text-align: left" data-rel="backtrace">';
     foreach ($callers as $caller) {
+        $from .= $plaintext ? '* ' : '<li>';
+        $ideurl = '';
+        if (!$plaintext && isset($CFG->debugideurlscheme) && isset($caller['line']) && isset($caller['file'])) {
+            $ideurl = strtr($CFG->debugideurlscheme, [
+                '{file}' => $caller['file'],
+                '{line}' => $caller['line']
+            ]);
+            // This is a low level admin defined URL scheme so no escaping or cleaning here.
+            $from .= "<a href='$ideurl'>";
+        }
         if (!isset($caller['line'])) {
             $caller['line'] = '?'; // probably call_user_func()
         }
         if (!isset($caller['file'])) {
             $caller['file'] = 'unknownfile'; // probably call_user_func()
         }
-        $from .= $plaintext ? '* ' : '<li>';
         $from .= 'line ' . $caller['line'] . ' of ' . str_replace($dirroot, '', $caller['file']);
+        if ($ideurl) {
+            $from .= "</a>";
+        }
         if (isset($caller['function'])) {
             $from .= ': call to ';
             if (isset($caller['class'])) {
