@@ -758,6 +758,19 @@ $CFG->admin = 'admin';
 // $CFG->debug = (E_ALL | E_STRICT);   // === DEBUG_DEVELOPER - NOT FOR PRODUCTION SERVERS!
 // $CFG->debugdisplay = 1;             // NOT FOR PRODUCTION SERVERS!
 //
+// When debugdisplay shows a stacktraces you can also configure mentions of
+// source code files and line to be links which open directly in your IDE at
+// the right place. Example's for popular IDE's include:
+// $CFG->debugideurlscheme = 'vscode://file{file}:{line}';
+// $CFG->debugideurlscheme = 'phpstorm://open?{file}:{line}';
+// $CFG->debugideurlscheme = 'txmt://open?line={line}&url=file://{file}';
+// $CFG->debugideurlscheme = 'atom://open?url=file://{file}&line={line}'; // Requires the 'open' atom package.
+//
+// If during development your code is inside a VM or docker container then the
+// paths may be different. You can fix this by setting the path on your host
+// where the source files are located:
+// $CFG->srcdirroot = '/path/on/host/';
+//
 // You can specify a comma separated list of user ids that that always see
 // debug messages, this overrides the debug flag in $CFG->debug and $CFG->debugdisplay
 // for these users only.
