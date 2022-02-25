@@ -28,6 +28,7 @@ namespace tool_task;
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir . '/tablelib.php');
+use core\task\manager;
 
 /**
  * Table to display list of running task.
@@ -47,7 +48,7 @@ class running_tasks_table extends \table_sql {
         $columnheaders = [
             'classname'    => get_string('classname', 'tool_task'),
             'type'         => get_string('tasktype', 'admin'),
-            'time'         => get_string('time'),
+            'time'         => get_string('taskage', 'tool_task'),
             'timestarted'  => get_string('started', 'tool_task'),
             'hostname'     => get_string('hostname', 'tool_task'),
             'pid'          => get_string('pid', 'tool_task'),
@@ -126,7 +127,24 @@ class running_tasks_table extends \table_sql {
      * @return  string
      */
     public function col_time($row) : string {
-        return format_time($row->time);
+        global $OUTPUT;
+
+        if ($row->type == 'adhoc') {
+            $task = manager::adhoc_task_from_record($row);
+        } elseif ($row->type == 'scheduled') {
+            $task = manager::scheduled_task_from_record($row);
+        }
+        $result = $task->get_runtime_status();
+        $extra = '';
+        if ($result->get_status() != $result::OK) {
+            $extra = '<br>';
+            $extra .= $OUTPUT->check_result($result);
+            $extra .= ' ';
+            $extra .= $result->get_details();
+        }
+
+
+        return format_time($row->time) . $extra;
     }
 
     /**
