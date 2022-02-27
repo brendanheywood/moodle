@@ -26,6 +26,7 @@ namespace core\task;
 
 use core_component;
 use core_plugin_manager;
+use core\check\result;
 
 /**
  * Abstract class for common properties of scheduled_task and adhoc_task.
@@ -203,6 +204,36 @@ abstract class task_base {
     }
 
     /**
+     * Returns if the task has been running for too long
+     * @return check
+     */
+    public function get_runtime_status() {
+        global $CFG;
+
+        $started = $this->timestarted;
+
+    // TODO move this to setuplib
+        $runtimewarn = $CFG->taskruntimewarn ?? 12 * HOURSECS;
+        $runtimeerror = $CFG->taskruntimeerror ?? DAYSECS;
+
+        $runtime = time() - $started;
+
+        $status = result::OK;
+        $details = '';
+        if ($runtime > $runtimewarn) {
+            $status = result::WARNING;
+            $details = get_string('slowtask', 'tool_task', format_time($runtimewarn));
+        }
+        if ($runtime > $runtimeerror) {
+            $status = result::ERROR;
+            $details = get_string('slowtask', 'tool_task', format_time($runtimeerror));
+        }
+
+        // This result is aggregated with other running tasks checks before display.
+        return new result($status, '', $details);
+    }
+
+    /**
      * Setter for $hostname.
      * @param string $hostname
      */
@@ -232,6 +263,15 @@ abstract class task_base {
      */
     public function get_pid() {
         return $this->pid;
+    }
+
+    /**
+     * Get a descriptive name for this task (shown to admins).
+     *
+     * @return string
+     */
+    public function get_name() {
+        return "crap";
     }
 
     /**
