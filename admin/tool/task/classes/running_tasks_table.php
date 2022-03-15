@@ -112,7 +112,7 @@ class running_tasks_table extends \table_sql {
         if ($row->type == 'scheduled') {
             $output = \html_writer::span(get_string('scheduled', 'tool_task'), 'badge badge-primary');
         } else if ($row->type == 'adhoc') {
-            $output = \html_writer::span(get_string('adhoc', 'tool_task'), 'badge badge-warning');
+            $output = \html_writer::span(get_string('adhoc', 'tool_task'), 'badge badge-dark');
         } else {
             // This shouldn't ever happen.
             $output = '';

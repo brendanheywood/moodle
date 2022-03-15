@@ -563,11 +563,4 @@ abstract class scheduled_task extends task_base {
         return str_replace('\\', '-', ltrim($classname, '\\'));
     }
 
-    /**
-     * Get a descriptive name for this task (shown to admins).
-     *
-     * @return string
-     */
-    abstract public function get_name();
-
 }
