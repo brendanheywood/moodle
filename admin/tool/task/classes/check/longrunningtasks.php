@@ -85,12 +85,12 @@ class longrunningtasks extends check {
             $taskstatus = $result->get_status();
 
             if ($taskstatus == result::OK) {
-                next;
+                continue;
             }
 
             $slowtasks++;
 
-            // The overall status is the worst task status.
+            // The overall check status is the worst tasks status.
             if ($status !== result::ERROR) {
                 $status = $taskstatus;
             }
