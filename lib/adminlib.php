@@ -6682,7 +6682,7 @@ class admin_setting_manageenrols extends admin_setting {
             $test = '';
             if (!empty($enrols_available[$enrol]) and method_exists($enrols_available[$enrol], 'test_settings')) {
                 $testsettingsurl = new moodle_url('/enrol/test_settings.php', array('enrol'=>$enrol, 'sesskey'=>sesskey()));
-                $test = html_writer::link($testsettingsurl, $strtest);
+                $test = $OUTPUT->single_button($testurl, $txt->testsettings);
             }
 
             // Add a row to the table.
@@ -7147,7 +7147,8 @@ class admin_setting_manageauths extends admin_setting {
 
         $table = new html_table();
         $table->head  = array($txt->name, $txt->users, $txt->enable, $txt->updown, $txt->settings, $txt->testsettings, $txt->uninstall);
-        $table->colclasses = array('leftalign', 'centeralign', 'centeralign', 'centeralign', 'centeralign', 'centeralign', 'centeralign');
+        $table->colclasses = array('leftalign align-middle', 'centeralign align-middle', 'centeralign align-middle',
+            'centeralign align-middle', 'centeralign align-middle', 'centeralign align-middle', 'centeralign align-middle');
         $table->data  = array();
         $table->attributes['class'] = 'admintable generaltable';
         $table->id = 'manageauthtable';
