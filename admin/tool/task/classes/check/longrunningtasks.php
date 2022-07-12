@@ -73,27 +73,22 @@ class longrunningtasks extends check {
 
         $tasks = \core\task\manager::get_running_tasks();
         foreach ($tasks as $record) {
-            if ($record->type == 'adhoc') {
-                $task = manager::adhoc_task_from_record($record);
-                $name = get_class($task);
-            } elseif ($record->type == 'scheduled') {
-                $task = manager::scheduled_task_from_record($record);
-                $name = $task->get_name();
+            if (!in_array($record->type, ['adhoc', 'scheduled'])) {
+                continue;
             }
 
+            $managermethod = $record->type . "_task_from_record";
+            $task = manager::$managermethod($record);
             $result = $task->get_runtime_status();
             $taskstatus = $result->get_status();
 
             if ($taskstatus == result::OK) {
                 continue;
             }
-
             $slowtasks++;
 
             // The overall check status is the worst tasks status.
-            if ($status !== result::ERROR) {
-                $status = $taskstatus;
-            }
+            $status = ($status !== result::ERROR) ? $taskstatus : $status;
         }
 
         $details = get_string('checklongrunningtaskcount', 'tool_task', $slowtasks);
