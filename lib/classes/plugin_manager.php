@@ -1644,6 +1644,10 @@ class core_plugin_manager {
      */
     public function is_plugin_folder_removable($component) {
 
+        if (!empty($CFG->uninstallkeepfiles)) {
+            return false;
+        }
+
         $pluginfo = $this->get_plugin_info($component);
 
         if (is_null($pluginfo)) {

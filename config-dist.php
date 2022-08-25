@@ -716,6 +716,11 @@ $CFG->admin = 'admin';
 //
 //      $CFG->uninstallclionly = true;
 //
+// When uninstalling plugins you can disallow the files to be removed. This makes it easier when
+// developing plugins install scripts and avoids accidentally deleting the code you are writing.
+//
+//      $CFG->uninstallkeepfiles = true;
+//
 // Course and category sorting
 //
 // If the number of courses in a category exceeds $CFG->maxcoursesincategory (10000 by default), it may lead to duplicate

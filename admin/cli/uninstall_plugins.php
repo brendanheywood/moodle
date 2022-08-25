@@ -33,14 +33,15 @@ $help = "Command line tool to uninstall plugins.
 
 Options:
     -h --help                   Print this help.
-    --show-all                  Displays a list of all installed plugins.
-    --show-contrib              Displays a list of all third-party installed plugins.
-    --show-missing              Displays a list of plugins missing from disk.
-    --purge-missing             Uninstall all missing from disk plugins.
-    --plugins=<plugin name>     A comma separated list of plugins to be uninstalled. E.g. mod_assign,mod_forum
-    --run                       Execute uninstall. If this option is not set, then the script will be run in a dry mode.
-    --showsql                   Show sql queries before they are executed.
-    --showdebugging             Show developer level debugging information.
+       --show-all               Displays a list of all installed plugins.
+       --show-contrib           Displays a list of all third-party installed plugins.
+       --show-missing           Displays a list of plugins missing from disk.
+       --purge-missing          Uninstall all missing from disk plugins.
+    -p --plugins=<plugin name>  A comma separated list of plugins to be uninstalled. E.g. mod_assign,mod_forum
+       --run                    Execute uninstall. If this option is not set, then the script will be run in a dry mode.
+       --showsql                Show sql queries before they are executed.
+       --showdebugging          Show developer level debugging information.
+    -k --keep-files             Keep plugin files
 
 Examples:
 
@@ -77,7 +78,9 @@ list($options, $unrecognised) = cli_get_params([
     'showsql' => false,
     'showdebugging' => false,
 ], [
-    'h' => 'help'
+    'h' => 'help',
+    'p' => 'plugins',
+    'k' => 'keep-files'
 ]);
 
 if ($unrecognised) {
@@ -96,6 +99,9 @@ if ($options['showdebugging']) {
 
 if ($options['showsql']) {
     $DB->set_debug(true);
+}
+if ($options['keep-files']) {
+    $CFG->uninstallkeepfiles = true;
 }
 
 $pluginman = core_plugin_manager::instance();
