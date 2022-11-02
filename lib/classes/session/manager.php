@@ -935,6 +935,9 @@ class manager {
 
         // Init session key.
         sesskey();
+
+        // Make sure the user is correct in web server access logs.
+        set_access_log_user();
     }
 
     /**
