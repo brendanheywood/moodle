@@ -161,6 +161,20 @@ class publicpaths extends check {
                 'pattern'   => '/behat/',
                 '404'       => ['blog/tests/behat/delete.feature'],
             ],
+            [
+                'pattern'   => 'directory-without-slash',
+                '30x'       => [
+                    'mod',
+                ],
+                'summary'   => get_string('check_dirwithoutslash_info', 'report_security'),
+            ],
+            [
+                'pattern'   => 'http-redirect',
+                '30x'       => [
+                    str_replace('https', 'http' , $CFG->wwwroot),
+                ],
+                'summary'   => get_string('check_nonsecureredirect_info', 'report_security'),
+            ],
         ];
     }
 
@@ -199,9 +213,11 @@ class publicpaths extends check {
         $curl = new \curl();
         $requests = [];
 
+        $statuses = ['200', '30x', '404'];
+
         // Build up a list of all url so we can load them in parallel.
         foreach ($paths as $path) {
-            foreach (['200', '404'] as $expected) {
+            foreach ($statuses as $expected) {
                 if (!isset($path[$expected])) {
                     continue;
                 }
@@ -219,7 +235,7 @@ class publicpaths extends check {
         $headers = $curl->download($requests);
 
         foreach ($paths as $path) {
-            foreach (['200', '404'] as $expected) {
+            foreach ($statuses as $expected) {
                 if (!isset($path[$expected])) {
                     continue;
                 }
@@ -227,7 +243,11 @@ class publicpaths extends check {
                     $rowsummary = '';
                     $rowdetail = '';
 
-                    $url = $CFG->wwwroot . '/' . $test;
+                    if (substr($test, 4) == 'http') {
+                        $url = $test;
+                    } else {
+                        $url = $CFG->wwwroot . '/' . $test;
+                    }
 
                     // Parse the HTTP header to get the 200 / 404 code.
                     $header = array_shift($headers);
@@ -235,7 +255,12 @@ class publicpaths extends check {
                     $actual = strtok($actual, " ");
                     $actual = strtok(" ");
 
-                    if ($actual != $expected) {
+                    $accepted = $actual;
+                    if ($accepted > 300 && $accepted < 400) {
+                        $accepted = '30x';
+                    }
+
+                    if ($accepted != $expected) {
                         if (isset($path['summary'])) {
                             $rowsummary = $path['summary'];
                         } else {
@@ -252,7 +277,6 @@ class publicpaths extends check {
                             $status = result::ERROR;
                             $summary = get_string('check_publicpaths_warning', 'report_security');
                         }
-
                         $rowdetail = isset($path['details']) ? $path['details'] : $rowsummary;
 
                         if (empty($errors[$path['pattern']])) {

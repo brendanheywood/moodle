@@ -73,9 +73,9 @@ $string['check_antivirus_info'] = 'No antivirus scanners are currently enabled';
 $string['check_antivirus_name'] = 'Antivirus';
 $string['check_antivirus_ok'] = '{$a->scanners} antivirus scanner(s) enabled, no issues have been detected in the last {$a->lookback}';
 $string['check_antivirus_logstore_not_supported'] = 'Unable to verify state of antivirus scanners due to the type of log store chosen';
-
 $string['check_dotfiles_info'] = 'All dotfiles except /.well-known/* should not be public';
 $string['check_dirindex_info'] = 'Directory index should not be enabled';
+$string['check_dirwithoutslash_info'] = 'Directories without a slash should redirect to the same url with a / on the end.';
 $string['check_guestrole_details'] = '<p>The guest role is used for guests, not logged in users and temporary guest course access. Please make sure no risky capabilities are allowed in this role.</p>
 <p>The only supported legacy type for guest role is <em>Guest</em>.</p>';
 $string['check_guestrole_error'] = 'The guest role "{$a}" is incorrectly defined!';
@@ -85,6 +85,7 @@ $string['check_guestrole_ok'] = 'Guest role definition is OK.';
 $string['check_nodemodules_details'] = '<p>The directory <code>{$a->path}</code> contains Node.js modules and their dependencies, typically installed by the NPM utility. These modules may be needed for local Moodle development, such as for using the grunt framework. They are not needed to run a Moodle site in production and they can contain potentially dangerous code exposing your site to remote attacks.</p><p>It is strongly recommended to remove the directory if the site is available via a public URL, or at least prohibit web access to it in your webserver configuration.</p>';
 $string['check_nodemodules_info'] = 'The node_modules directory should not be present on public sites.';
 $string['check_nodemodules_name'] = 'Node.js modules directory';
+$string['check_nonsecureredirect_info'] = 'Accessing the http version of the site should serve a 301, 302, 303 or 307 redirect';
 $string['check_openprofiles_details'] = 'Open user profiles can be abused by spammers. It is recommended that either <code>Force users to log in for profiles</code> or <code>Force users to log in</code> are enabled.';
 $string['check_openprofiles_error'] = 'Anyone can may view user profiles without logging in.';
 $string['check_openprofiles_name'] = 'Open user profiles';
