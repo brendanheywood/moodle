@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Opensearch XML file for Global Search 
+ * Opensearch autodiscovery file for Global Search
  *
  * @package   core_search
  * @copyright Brendan Heywood (brendan@catalyst-au.net)
@@ -27,8 +27,7 @@ require_once(__DIR__ . '/../config.php');
 // header('Content-Type: application/opensearchdescription+xml');
 header('Content-Type: text/xml');
 
-$shortname = $SITE->fullname;
-$description = 'rcap';
+$shortname = s($SITE->fullname);
 $searchterms = (new moodle_url('/search/index.php', ['context' => 1, 'q' => '']))->out();
 $searchurl = (new moodle_url('/search/index.php'))->out();
 $favicon = (new moodle_url('/search/index.php'))->out();

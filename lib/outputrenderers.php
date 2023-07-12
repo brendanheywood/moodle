@@ -720,6 +720,11 @@ class core_renderer extends renderer_base {
             $output .= '<meta http-equiv="refresh" content="'.$this->page->periodicrefreshdelay.';url='.$this->page->url->out().'" />';
         }
 
+        if (!empty($CFG->enableglobalsearch) ) {
+            $opensearch = new moodle_url('/search/opensearch.php');
+            $output .= "<link rel='search' type='application/opensearchdescription+xml' title='searchTitle' href='$opensearch' />\n";
+        }
+
         // Set up help link popups for all links with the helptooltip class
         $this->page->requires->js_init_call('M.util.help_popups.setup');
 
