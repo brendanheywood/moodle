@@ -1140,7 +1140,7 @@ if (false) {
 initialise_local_config_cache();
 
 // Allow plugins to callback as soon possible after setup.php is loaded.
-$pluginswithfunction = get_plugins_with_function('after_config', 'lib.php');
+$pluginswithfunction = get_plugins_with_function('after_config', 'lib.php', true, true);
 foreach ($pluginswithfunction as $plugins) {
     foreach ($plugins as $function) {
         try {
@@ -1150,3 +1150,4 @@ foreach ($pluginswithfunction as $plugins) {
         }
     }
 }
+\core\hook\manager::get_instance()->dispatch(new \core\hook\after_config());
