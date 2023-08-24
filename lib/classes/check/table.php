@@ -89,14 +89,26 @@ class table implements \renderable {
      */
     public function render($output) {
 
+        $waiting = $output->pix_icon('i/loading', get_string('loading'));
+
         $table = new \html_table();
         $table->data = [];
-        $table->head  = [
-            get_string('status'),
-            get_string('check'),
-            get_string('summary'),
-            get_string('action'),
-        ];
+        $table->head = [];
+        $th = new \html_table_cell(get_string('status'));
+        $th->style = 'width: 6em';
+        $table->head[] = $th;
+
+        $th = new \html_table_cell(get_string('check'));
+        $th->style = 'width: 10em';
+        $table->head[] = $th;
+
+        $th = new \html_table_cell(get_string('summary'));
+        $table->head[] = $th;
+
+        $th = new \html_table_cell(get_string('action'));
+        $th->style = 'width: 20%';
+        $table->head[] = $th;
+
         $table->colclasses = [
             'rightalign status',
             'leftalign check',
@@ -108,17 +120,16 @@ class table implements \renderable {
 
         foreach ($this->checks as $check) {
             $ref = $check->get_ref();
-            $result = $check->get_result();
             $component = $check->get_component();
             $actionlink = $check->get_action_link();
 
             $link = new \moodle_url($this->url, ['detail' => $ref]);
 
             $row = [];
-            $row[] = $output->check_result($result);
+            $row[] = \html_writer::tag('span', $waiting, ['class' => 'status']);
             $row[] = $output->action_link($link, $check->get_name());
 
-            $row[] = $result->get_summary()
+            $row[] = \html_writer::tag('span', $waiting, ['class' => 'summarytext'])
                 . '<br>'
                 . \html_writer::start_tag('small')
                 . $output->action_link($link, get_string('moreinfo'))
@@ -129,17 +140,43 @@ class table implements \renderable {
                 $row[] = '';
             }
 
-            $table->data[] = $row;
+            $tablerow = new \html_table_row($row);
+            $tablerow->id = 'row_' . $ref;
+            $table->data[] = $tablerow;
         }
         $html = \html_writer::table($table);
 
-        if ($this->detail && $result) {
+        if ($this->detail) {
+            // Just render a placeholder for the details.
             $html .= $output->heading(get_string('details'), 3);
-            $html .= $output->box($result->get_details(), 'generalbox boxwidthnormal boxaligncenter');
+            $loading = \html_writer::tag('div', '', ['class' => 'bg-pulse-grey', 'style' => 'min-height: 4em']);
+            $html .= $output->box($loading, 'generalbox boxwidthnormal boxaligncenter', 'checkdetails');
             $html .= $output->continue_button($this->url);
         }
 
         return $html;
+    }
+
+    /**
+     * Runs the checks asynchronously
+     * @param renderer $output page renderer
+     * @return string html
+     */
+    public function run_checks($output) {
+        foreach ($this->checks as $check) {
+            $ref = $check->get_ref();
+            $id = 'row_' . $ref;
+            $result = $check->get_result();
+            $status = $output->check_result($result);
+            echo $output->select_element_for_replace("#$id .status", $status);
+
+            $summary = $result->get_summary();
+            echo $output->select_element_for_replace("#$id .summarytext", $summary);
+
+            if ($this->detail) {
+                echo $output->select_element_for_replace('#checkdetails', $result->get_details());
+            }
+        }
     }
 }
 

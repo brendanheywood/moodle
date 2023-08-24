@@ -39,10 +39,13 @@ if (!empty($table->detail)) {
     $PAGE->navbar->add($table->detail->get_name());
 }
 
+\core\session\manager::write_close();
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('pluginname', 'report_security'));
 echo $table->render($OUTPUT);
 echo $OUTPUT->footer();
+echo $table->run_checks($OUTPUT);
 
 $event = \report_security\event\report_viewed::create(['context' => context_system::instance()]);
 $event->trigger();

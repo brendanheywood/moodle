@@ -39,8 +39,11 @@ if (!empty($table->detail)) {
     $PAGE->navbar->add($table->detail->get_name());
 }
 
+\core\session\manager::write_close();
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('pluginname', 'report_status'));
 echo $table->render($OUTPUT);
 echo $OUTPUT->footer();
+echo $table->run_checks($OUTPUT);
 
