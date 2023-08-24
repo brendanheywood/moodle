@@ -37,8 +37,17 @@ defined('MOODLE_INTERNAL') || die();
  */
 class image_transform {
 
+    public $file;
+
+    public $transform;
+
+    public function __construct($file, $transform) {
+        $this->file = $file;
+        $this->transform = $transform;
+    }
+
     public function get_final_image() {
-        print "some test image";
+        print "some test image of " . $this->transform;
 die;
     }
 

@@ -467,7 +467,8 @@ class file_storage {
         } else if ($mode === 'bigthumb') {
             $data = $file->generate_image_thumbnail(250, 250);
         } else if (substr($mode, 0, 9) == 'transform') {
-            $transform = new \core\media\image_transform();
+            $steps = substr($mode, 9);
+            $transform = new \core\media\image_transform($file, $steps);
             $data = $transform->get_final_image();
         } else {
             throw new file_exception('storedfileproblem', 'Invalid preview mode requested');
