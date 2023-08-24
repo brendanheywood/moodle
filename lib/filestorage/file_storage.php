@@ -242,7 +242,8 @@ class file_storage {
 
         $context = context_system::instance();
         $path = '/' . trim($mode, '/') . '/';
-        $preview = $this->get_file($context->id, 'core', 'preview', 0, $path, $file->get_contenthash());
+        // Temp commented out to make dev easier TODO add back in later
+        // $preview = $this->get_file($context->id, 'core', 'preview', 0, $path, $file->get_contenthash());
 
         if (!$preview) {
             $preview = $this->create_file_preview($file, $mode);
