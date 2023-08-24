@@ -444,7 +444,12 @@ class file_storage {
             $record['mimetype'] = $imageinfo['mime'];
         }
 
-        return $this->create_file_from_string($record, $data);
+        // Bypass loading the image from File api and serve it directly
+        // TODO remove this later
+        header('Content-Type: image/png');
+        echo $data;
+        die;
+        // return $this->create_file_from_string($record, $data);
     }
 
     /**

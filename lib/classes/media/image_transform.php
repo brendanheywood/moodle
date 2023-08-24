@@ -15,10 +15,10 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Image transfor
+ * Image transform
  *
  * @package    core
- * @category   mediua
+ * @category   media
  * @copyright  2023 Brendan Heywood <brendan@catalyst-au.net>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -47,8 +47,22 @@ class image_transform {
     }
 
     public function get_final_image() {
-        print "some test image of " . $this->transform;
-die;
+
+        // This creates an image which is a white box.
+        $image = imagecreate(100,100);
+        $black = imagecolorallocate($image, 0, 0, 0);
+        $white = imagecolorallocate($image, 255, 255, 255);
+
+        // Output the transform into the image so we know its being passed along.
+        imagestring($image, 1, 5, 5,  $this->transform, $white);
+
+        // Save the image into a string so we can return it instead of serving it.
+        ob_start();
+        imagepng($image);
+        $data = ob_get_clean();
+
+        imagedestroy($image);
+        return $data;
     }
 
 }
