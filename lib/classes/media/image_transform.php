@@ -49,7 +49,7 @@ class image_transform {
     public function get_final_image() {
 
         // This creates an image which is a white box.
-        $image = imagecreate(100,100);
+        $image = imagecreate(254,112);
         $black = imagecolorallocate($image, 0, 0, 0);
         $white = imagecolorallocate($image, 255, 255, 255);
 
