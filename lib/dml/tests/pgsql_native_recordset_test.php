@@ -405,8 +405,8 @@ class pgsql_native_recordset_test extends basic_testcase {
                 }
                 continue;
             }
-            // Skip irrelevant lines.
-            if (preg_match('~^---~', $line)) {
+            // Skip irrelevant comment lines.
+            if (preg_match('~^--~', $line)) {
                 continue;
             }
             if (preg_match('~^Query took~', $line)) {

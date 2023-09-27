@@ -605,13 +605,16 @@ abstract class moodle_database {
             return;
         }
         if (CLI_SCRIPT) {
-            $separator = "--------------------------------\n";
+            $separator = str_repeat('-', 70) . "\n";
             echo $separator;
             echo "{$sql}\n";
-            if (!is_null($params)) {
-                echo "[" . var_export($params, true) . "]\n";
+            if (!empty($params)) {
+                echo "\n-- SQL params:\n";
+                $count = 1;
+                foreach ($params as $key => $value) {
+                    echo '--   $' . $count++ . ' = ' . $value . "\n";
+                }
             }
-            echo $separator;
         } else if (AJAX_SCRIPT) {
             $separator = "--------------------------------";
             error_log($separator);
@@ -621,13 +624,21 @@ abstract class moodle_database {
             }
             error_log($separator);
         } else {
-            $separator = "<hr />\n";
-            echo $separator;
-            echo s($sql) . "\n";
-            if (!is_null($params)) {
-                echo "[" . s(var_export($params, true)) . "]\n";
+            echo "<div class='alert alert-info'>";
+            echo "<h4>This is SQL query number $querycount</h4>\n";
+            echo "<pre class=bg-light>\n";
+            echo s($sql);
+            echo "</pre>\n";
+            if (!empty($params)) {
+                echo 'SQL params:';
+                echo "<pre class=bg-light>\n";
+                $count = 1;
+                foreach ($params as $key => $value) {
+                    echo '$' . $count++ . ' = ' . s(var_export($value, true)) . "\n";
+                }
+                echo "</pre>\n";
             }
-            echo $separator;
+            echo "</div>\n";
         }
     }
 
@@ -640,10 +651,10 @@ abstract class moodle_database {
             return;
         }
         $time = $this->query_time();
-        $message = "Query took: {$time} seconds.\n";
+        $message = sprintf("Query took: %.6f seconds\n", $time);
         if (CLI_SCRIPT) {
-            echo $message;
-            echo "--------------------------------\n";
+            echo "-- $message";
+            echo str_repeat('-', 70) . "\n";
         } else if (AJAX_SCRIPT) {
             error_log($message);
             error_log("--------------------------------");
@@ -1055,7 +1066,7 @@ abstract class moodle_database {
      * @return string Instrumented sql
      */
     protected function add_sql_debugging(string $sql): string {
-        global $CFG;
+        global $CFG, $ME, $SCRIPT, $USER;
 
         if (!property_exists($CFG, 'debugsqltrace')) {
             return $sql;
@@ -1070,9 +1081,12 @@ abstract class moodle_database {
         $callers = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
 
         // Ignore moodle_database internals.
-        $callers = array_filter($callers, function($caller) {
-            return empty($caller['class']) || $caller['class'] != 'moodle_database';
-        });
+        for ($c = sizeof($callers); $c > 0; $c--) {
+            if (!empty($callers[$c]['file']) && str_contains($callers[$c]['file'], '/lib/dml/')) {
+                break;
+            }
+        }
+        $callers = array_slice($callers, $c + 1);
 
         $callers = array_slice($callers, 0, $level);
 
@@ -1080,16 +1094,46 @@ abstract class moodle_database {
 
         // Convert all linebreaks to SQL comments, optionally
         // also eating any * formatting.
-        $text = preg_replace("/(^|\n)\*?\s*/", "\n-- ", $text);
+        $text = preg_replace("/(^|\n)\*?\s*/", "\n * ", $text);
 
-        // Convert all ? to 'unknown' in the sql coment so these don't get
+        $source = ''; // $ME
+        if (CLI_SCRIPT) {
+            $source = " * cli: $SCRIPT";
+        } else {
+            $source = " * URL:  $ME";
+        }
+        if (!empty($USER) && !empty($USER->id)) {
+            $source .= "\n * User: " . ($USER->username ?? '') . ' (' . ($USER->id ?? '') . ')';
+        }
+
+        // Wrap everything inside an SQL block comment because single line
+        // comments starting with -- do not show up in pgsql logs. The extra
+        // blank lines before and after cater for when this appears in the middle
+        // of some SQL queries.
+        $text = <<<EOF
+
+/**
+$source
+ * $text
+ */
+
+EOF;
+
+        // Convert question parameters like ? to '[questionmark]' in the sql coment so these don't get
         // caught by fix_sql_params().
-        $text = str_replace('?', 'unknown', $text);
+        $text = str_replace('?', '[questionmark]', $text);
 
-        // Convert tokens like :test to ::test for the same reason.
+        // Convert named parameters like :test to ::test for the same reason.
         $text = preg_replace('/(?<!:):[a-z][a-z0-9_]*/', ':\0', $text);
 
-        return $sql . $text;
+        // Convert dollar parameters like $1 for the same reason.
+        $text = preg_replace('/\$([1-9][0-9])*/', '[dollar]\1', $text);
+
+        // Replace all non-printable characters NOT within the range of 'space' and 'tilde', with nothing.
+        // This works because space is first printable char, and tilde (~) is last printable ascii char.
+        $text = preg_replace('/[^ -~\n]/', "", $text);
+
+        return $text . $sql;
     }
 
 
