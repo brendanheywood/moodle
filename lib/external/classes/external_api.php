@@ -191,6 +191,12 @@ class external_api {
             \core\session\manager::restart_with_write_lock($readonlysession);
         }
 
+        // If we could have a readonly session but it isn't enabled then do the next best thing
+        // and close the already opened session.
+        if ($readonlysession && empty($CFG->enable_read_only_sessions)) {
+            \core\session\manager::write_close();
+        }
+
         $currentpage = $PAGE;
         $currentcourse = $COURSE;
         $response = [];
