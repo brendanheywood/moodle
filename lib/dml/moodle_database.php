@@ -459,7 +459,7 @@ abstract class moodle_database {
                 }
         }
 
-        $this->print_debug($sql, $params);
+        $this->print_debug_start($sql, $params);
     }
 
     /**
@@ -473,12 +473,14 @@ abstract class moodle_database {
         if ($this->loggingquery) {
             return;
         }
+
+        $this->print_debug_end();
+
         if ($result !== false) {
             $this->query_log();
             // free memory
             $this->last_sql    = null;
             $this->last_params = null;
-            $this->print_debug_time();
             return;
         }
 
@@ -600,10 +602,14 @@ abstract class moodle_database {
      * @param mixed $obj The library specific object. (optional)
      * @return void
      */
-    protected function print_debug($sql, array $params=null, $obj=null) {
-        if (!$this->get_debug()) {
+    protected function print_debug_start(string $sql, array $params=null, $obj=null) {
+        static $querycount = 0;
+
+        $querycount++;
+        if (!$this->should_show_debug_sql($querycount)) {
             return;
         }
+
         if (CLI_SCRIPT) {
             $separator = str_repeat('-', 70) . "\n";
             echo $separator;
@@ -625,7 +631,7 @@ abstract class moodle_database {
             error_log($separator);
         } else {
             echo "<div class='alert alert-info'>";
-            echo "<h4>This is SQL query number $querycount</h4>\n";
+            echo "<h4 id='query$querycount'><a href='#query$querycount'>This is SQL query number $querycount</a></h4>\n";
             echo "<pre class=bg-light>\n";
             echo s($sql);
             echo "</pre>\n";
@@ -638,18 +644,50 @@ abstract class moodle_database {
                 }
                 echo "</pre>\n";
             }
-            echo "</div>\n";
         }
+    }
+
+    /**
+     * Determine if a specific SQL query should be shown
+     *
+     * @param  int $querycount which query may be shown
+     * @return bool true if query should be shown
+     */
+    private function should_show_debug_sql(int $querycount): bool {
+        global $CFG;
+
+        // If debugging is turned on in code then always debug.
+        if ($this->get_debug()) {
+            return true;
+        }
+
+        if (empty($CFG->debugsql)) {
+            return false;
+        }
+
+        $fromquery = optional_param('debugsqlfrom', 0, PARAM_INT);
+        if ($fromquery == 0 || $querycount < (int) $fromquery) {
+            return false;
+        }
+        $toquery = optional_param('debugsqlto', 0, PARAM_INT);
+        if ($toquery !== 0 && $querycount > (int) $toquery) {
+            return false;
+        }
+        return true;
     }
 
     /**
      * Prints the time a query took to run.
      * @return void
      */
-    protected function print_debug_time() {
-        if (!$this->get_debug()) {
+    protected function print_debug_end() {
+        static $querycount = 0;
+
+        $querycount++;
+        if (!$this->should_show_debug_sql($querycount)) {
             return;
         }
+
         $time = $this->query_time();
         $message = sprintf("Query took: %.6f seconds\n", $time);
         if (CLI_SCRIPT) {
@@ -660,7 +698,7 @@ abstract class moodle_database {
             error_log("--------------------------------");
         } else {
             echo s($message);
-            echo "<hr />\n";
+            echo "</div>\n";
         }
     }
 
@@ -1080,10 +1118,15 @@ abstract class moodle_database {
 
         $callers = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
 
-        // Ignore moodle_database internals.
-        for ($c = sizeof($callers); $c > 0; $c--) {
-            if (!empty($callers[$c]['file']) && str_contains($callers[$c]['file'], '/lib/dml/')) {
-                break;
+        // Ignore moodle_database internals. Start at the first layer in the
+        // stack and stop when we find any functions inside the DML api
+        // except some special cases for the DML unit tests.
+        for ($c = count($callers); $c > 0; $c--) {
+            if (!empty($callers[$c]['file'])) {
+                if (str_contains($callers[$c]['file'], '/lib/dml/') &&
+                    !str_contains($callers[$c]['file'], '/lib/dml/tests/')) {
+                    break;
+                }
             }
         }
         $callers = array_slice($callers, $c + 1);
@@ -1096,14 +1139,15 @@ abstract class moodle_database {
         // also eating any * formatting.
         $text = preg_replace("/(^|\n)\*?\s*/", "\n * ", $text);
 
-        $source = ''; // $ME
+        $source = '';
         if (CLI_SCRIPT) {
-            $source = " * cli: $SCRIPT";
+            $source = " * cli: " . clean_param($SCRIPT, PARAM_SQLCOMMENT);
         } else {
-            $source = " * URL:  $ME";
+            $source = " * URL:  " . clean_param($ME, PARAM_SQLCOMMENT);
         }
         if (!empty($USER) && !empty($USER->id)) {
-            $source .= "\n * User: " . ($USER->username ?? '') . ' (' . ($USER->id ?? '') . ')';
+            $source .= "\n * User: " . clean_param($USER->username ?? '', PARAM_SQLCOMMENT)
+                . ' (' . clean_param($USER->id ?? '', PARAM_SQLCOMMENT) . ')';
         }
 
         // Wrap everything inside an SQL block comment because single line
@@ -1132,6 +1176,9 @@ EOF;
         // Replace all non-printable characters NOT within the range of 'space' and 'tilde', with nothing.
         // This works because space is first printable char, and tilde (~) is last printable ascii char.
         $text = preg_replace('/[^ -~\n]/', "", $text);
+
+        // Remove any trailing whitespace.
+        $text = preg_replace("/\s+\n/", "\n", $text);
 
         return $text . $sql;
     }

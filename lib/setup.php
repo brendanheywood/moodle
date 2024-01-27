@@ -692,6 +692,14 @@ setup_validate_php_configuration();
 // Connect to the database
 setup_DB();
 
+// Allow SQL debugging to be turned on using an config setting and a query param from the nth query.
+// Filtering by the nth query is useful to eliminate a large number of queries on a page
+// which a developer is likely not interested in.
+if (isset($CFG->debugsql) && $CFG->debugsql && optional_param('debugsqlfrom', 0, PARAM_INT)) {
+    $CFG->debugsqltrace = 100;
+    $DB->set_debug(true);
+}
+
 if (PHPUNIT_TEST and !PHPUNIT_UTIL) {
     // Make sure tests do not run in parallel.
     $suffix = '';

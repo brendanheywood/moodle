@@ -500,6 +500,8 @@ $string['debugminimal'] = 'MINIMAL: Show only fatal errors';
 $string['debugnone'] = 'NONE: Do not show any errors or warnings';
 $string['debugnormal'] = 'NORMAL: Show errors, warnings and notices';
 $string['debugpageinfo'] = 'Show page information';
+$string['debugsql'] = 'Debug SQL queries';
+$string['debugsql_desc'] = 'If enabled, the raw SQL queries and their parameters are displayed when the debugsqlfrom=1 query param is appended to the page URL. As a large number of queries are performed you can filter to a subset for example adding ?debugsqlfrom=6&debugsqlto=8 will show the 6th-8th queries.';
 $string['debugsqltrace'] = 'Show origin of SQL calls';
 $string['debugsqltrace1'] = 'Show only a single calling line';
 $string['debugsqltrace2'] = 'Show 2 lines of stack trace';

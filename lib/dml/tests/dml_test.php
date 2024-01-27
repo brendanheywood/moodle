@@ -483,11 +483,16 @@ class dml_test extends \database_driver_testcase {
      * Test the database debugging as SQL comment.
      */
     public function test_add_sql_debugging(): void {
-        global $CFG;
+        global $CFG, $SCRIPT;
         $DB = $this->tdb;
 
         require_once($CFG->dirroot . '/lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php');
         $fixture = new \test_dml_sql_debugging_fixture($this);
+
+        // Force set this so its consistent regardless of how unit tests are
+        // run, because the script path is shown inside the sql.
+        $oldscript = $SCRIPT;
+        $SCRIPT = 'vendor/bin/phpunit';
 
         $sql = "SELECT * FROM {users}";
 
@@ -499,33 +504,49 @@ class dml_test extends \database_driver_testcase {
         $CFG->debugsqltrace = 1;
         $out = $fixture->four($sql);
         $expected = <<<EOD
+
+/**
+ * cli: vendor/bin/phpunit
+ *
+ * line 64 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
+ */
 SELECT * FROM {users}
--- line 64 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
 EOD;
         $this->assertEquals($this->unix_to_os_dirsep($expected), $out);
 
         $CFG->debugsqltrace = 2;
         $out = $fixture->four($sql);
         $expected = <<<EOD
+
+/**
+ * cli: vendor/bin/phpunit
+ *
+ * line 64 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
+ * line 73 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->one()
+ */
 SELECT * FROM {users}
--- line 64 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
--- line 73 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->one()
 EOD;
         $this->assertEquals($this->unix_to_os_dirsep($expected), $out);
 
         $CFG->debugsqltrace = 5;
         $out = $fixture->four($sql);
         $expected = <<<EOD
+
+/**
+ * cli: vendor/bin/phpunit
+ *
+ * line 64 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
+ * line 73 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->one()
+ * line 82 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->two()
+ * line 91 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->three()
+ * line 532 of /lib/dml/tests/dml_test.php: call to test_dml_sql_debugging_fixture->four()
+ */
 SELECT * FROM {users}
--- line 64 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to ReflectionMethod->invoke()
--- line 73 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->one()
--- line 82 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->two()
--- line 91 of /lib/dml/tests/fixtures/test_dml_sql_debugging_fixture.php: call to test_dml_sql_debugging_fixture->three()
--- line 517 of /lib/dml/tests/dml_test.php: call to test_dml_sql_debugging_fixture->four()
 EOD;
         $this->assertEquals($this->unix_to_os_dirsep($expected), $out);
 
         $CFG->debugsqltrace = 0;
+        $SCRIPT = $oldscript;
     }
 
     /**
