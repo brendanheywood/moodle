@@ -251,6 +251,33 @@ function cli_logo($padding=2, $return=false) {
 }
 
 /**
+ * Are chars like ansi colours codes allowed?
+ *
+ * Often when piping scripts together the later script cannot handle special
+ * chars so by default if the Moodle script is running in a TTY then these
+ * are stripped out.
+ *
+ * MOODLETTY=1 php admin/cli/example.php | less -r
+ *
+ * This example overrided this behavour with the MOODLETTY environment var set.
+ *
+ * This was implemented as an ENV var so all Moodle cli scripts benefit from
+ * it without changing their CLI args.
+ *
+ * @return boolean true if allowed
+ */
+function cli_allow_tty_chars() {
+    $env = getenv('MOODLETTY');
+    if (!empty($env)) {
+        return true;
+    }
+    if (stream_isatty(STDOUT)) {
+        return true;
+    }
+    return false;
+}
+
+/**
  * Substitute cursor, colour, and bell placeholders in a CLI output to ANSI escape characters when ANSI is available.
  *
  * @param string $message
@@ -308,6 +335,15 @@ function cli_ansi_format(string $message): string {
     }
     foreach ($bgcolours as $colour => $code) {
         $replacements["<bgcolour:{$colour}>"] = "\033[{$code}m";
+    }
+
+    // If we are not in a TTY then we or probably piping STDERR into another
+    // script in which case it is standard with most cli scripts to disable
+    // all colours.
+    if (!cli_allow_tty_chars()) {
+        foreach ($replacements as $key => $code) {
+            $replacements[$key] = '';
+        }
     }
 
     // Windows don't support ANSI code by default, but does if ANSICON is available.
