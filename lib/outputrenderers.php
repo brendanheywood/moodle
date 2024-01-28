@@ -5527,14 +5527,13 @@ class core_renderer_cli extends core_renderer {
      * @return string A template fragment for a heading
      */
     public function heading($text, $level = 2, $classes = 'main', $id = null) {
-        $text .= "\n";
+        $width = cli_get_terminal_width();
+        $text = html_to_text($text, $width);
         switch ($level) {
             case 1:
-                return '=>' . $text;
+                return "$text\n" . str_repeat('=', $width) . "\n\n";
             case 2:
-                return '-->' . $text;
-            default:
-                return $text;
+                return "$text\n" . str_repeat('-', $width) . "\n\n";
         }
     }
 
