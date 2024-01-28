@@ -5440,21 +5440,15 @@ class core_renderer_cli extends core_renderer {
      * @return string ascii fragment
      */
     public function render_progress_bar(progress_bar $bar) {
-        global $CFG;
+        $size = cli_get_terminal_width() - 25;
 
-        $size = 55; // The width of the progress bar in chars.
-        $ascii = "\n";
-
-        if (stream_isatty(STDOUT)) {
-            require_once($CFG->libdir.'/clilib.php');
-
-            $ascii .= "[" . str_repeat(' ', $size) . "] 0% \n";
+        if (cli_allow_tty_chars()) {
+            $ascii = "[" . str_repeat(' ', $size) . "] 0.0% - ??\n\n";
             return cli_ansi_format($ascii);
         }
 
         $this->progressmaximums[$bar->get_id()] = 0;
-        $ascii .= '[';
-        return $ascii;
+        return '[';
     }
 
     /**
@@ -5470,13 +5464,15 @@ class core_renderer_cli extends core_renderer {
      * @return string ascii fragment
      */
     public function render_progress_bar_update(string $id, float $percent, string $msg, string $estimate) : string {
-        $size = 55; // The width of the progress bar in chars.
+        $size = cli_get_terminal_width() - 25;
         $ascii = '';
+
+        $percent = min(100, $percent);
 
         // If we are rendering to a terminal then we can safely use ansii codes
         // to move the cursor and redraw the complete progress bar each time
         // it is updated.
-        if (stream_isatty(STDOUT)) {
+        if (cli_allow_tty_chars()) {
             $colour = $percent == 100 ? 'green' : 'blue';
 
             $done = $percent * $size * 0.01;
