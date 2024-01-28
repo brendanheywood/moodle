@@ -5561,6 +5561,67 @@ class core_renderer_cli extends core_renderer {
     }
 
     /**
+     * Outputs a box around text
+     *
+     * @param string $contents The contents of the box
+     * @param string $classes A space-separated list of the following classes:
+     *               Borders: rounded, double, heavy
+     *               Aligment: center
+     * @param string $id An optional ID
+     * @param array $attributes An array of other attributes to give the box.
+     *          width  - in number of chars
+     *          indent - in number of chars
+     * @return string the HTML to output.
+     */
+    public function box($contents, $classes = 'generalbox', $id = null, $attributes = array()) {
+
+        if (!cli_allow_tty_chars()) {
+            $tl = '+'; $tr = '+'; $bl = '+'; $br = '+'; $v ='|'; $h ='-';
+        } else if (str_contains($classes, 'rounded')) {
+            $tl = '╭'; $tr = '╮'; $bl = '╰'; $br = '╯'; $v ='│'; $h ='─';
+        } else if (str_contains($classes, 'double')) {
+            $tl = '╔'; $tr = '╗'; $bl = '╚'; $br = '╝'; $v ='║'; $h ='═';
+        } else if (str_contains($classes, 'heavy')) {
+            $tl = '┏'; $tr = '┓'; $bl = '┗'; $br = '┛'; $v ='┃'; $h ='━';
+        } else {
+            $tl = '┌'; $tr = '┐'; $bl = '└'; $br = '┘'; $v ='│'; $h ='─';
+        }
+
+        $boxwidth = cli_get_terminal_width() - 1;
+        if (!empty($attributes['width'])) {
+            $boxwidth = $attributes['width'];
+        }
+
+        $indent = 1;
+        if (str_contains($classes, 'center')) {
+            // If no boxwidth set.
+            if (!empty($attributes['width'])) {
+                $boxwidth = 50;
+            }
+            $indent = floor((75 - $boxwidth) / 2) + 1;
+        } else if (!empty($attributes['indent'])) {
+            $indent = $attributes['indent'];
+        }
+
+        // Left margin.
+        $lm = str_repeat(' ', $indent);
+
+        $contents = trim($contents);
+        $contents = html_to_text($contents, $boxwidth - 5) . "\n";
+        $contents = trim($contents);
+
+        $lines = explode("\n", $contents);
+
+        $text = "$lm$tl" . str_repeat($h, $boxwidth - 3) . "$tr\n";
+        foreach ($lines as $line) {
+            $text .= "$lm$v " . sprintf('%-' . ($boxwidth - 5). 's', $line) . " $v\n";
+        }
+        $text .= "$lm$bl" . str_repeat($h, $boxwidth - 3) . "$br\n\n";
+
+        return $text;
+    }
+
+    /**
      * Returns a template fragment representing a fatal error.
      *
      * @param string $message The message to output
