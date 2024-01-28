@@ -5534,6 +5534,8 @@ class core_renderer_cli extends core_renderer {
                 return "$text\n" . str_repeat('=', $width) . "\n\n";
             case 2:
                 return "$text\n" . str_repeat('-', $width) . "\n\n";
+            default:
+                return str_repeat('#', $level) . " $text\n\n";
         }
     }
 
