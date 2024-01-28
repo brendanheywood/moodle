@@ -278,6 +278,19 @@ function cli_allow_tty_chars() {
 }
 
 /**
+ * How wide is the terminal in chars?
+ *
+ * Support for this is very inconsistent and defaults to 78 chars and
+ * will never return a larger size to aid in better line length.
+ * @return int width
+ */
+function cli_get_terminal_width() {
+    $width = getenv('COLUMNS');
+    $width = min(78, $width);
+    return $width ?: 78;
+}
+
+/**
  * Substitute cursor, colour, and bell placeholders in a CLI output to ANSI escape characters when ANSI is available.
  *
  * @param string $message
