@@ -5381,6 +5381,12 @@ EOD;
  */
 class core_renderer_cli extends core_renderer {
 
+    public function __construct(moodle_page $page, $target) {
+        global $CFG;
+        require_once($CFG->libdir.'/clilib.php');
+        parent::__construct($page, $target);
+    }
+
     /**
      * @var array $progressmaximums stores the largest percentage for a progress bar.
      * @return string ascii fragment
