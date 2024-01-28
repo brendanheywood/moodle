@@ -5518,6 +5518,21 @@ class core_renderer_cli extends core_renderer {
     }
 
     /**
+     * Outputs a paragraph.
+     *
+     * @param string $contents The contents of the paragraph
+     * @param string|null $classes A space-separated list of CSS classes
+     * @param string|null $id An optional ID
+     * @return string the HTML to output.
+     */
+    public function paragraph(string $contents, ?string $classes = null, ?string $id = null): string {
+        $contents = trim($contents);
+        $width = cli_get_terminal_width();
+        $text = html_to_text($contents, $width) . "\n";
+        return $text;
+    }
+
+    /**
      * Returns a template fragment representing a Heading.
      *
      * @param string $text The text of the heading
