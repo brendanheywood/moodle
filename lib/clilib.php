@@ -269,7 +269,7 @@ function cli_logo($padding=2, $return=false) {
 function cli_allow_tty_chars() {
     $env = getenv('MOODLETTY');
     if (!empty($env)) {
-        return true;
+        return !!$env;
     }
     if (stream_isatty(STDOUT)) {
         return true;
