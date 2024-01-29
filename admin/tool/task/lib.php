@@ -46,5 +46,15 @@ function tool_task_status_checks() : array {
  */
 function tool_task_mtrace_wrapper(string $message, string $eol): void {
     $message = s($message);
+    if (preg_match('/error/i', $message)) {
+        // $message = preg_replace("/ERROR/i", '<b class="bg-danger text-dark">$0</b>', $message);
+        $message = "<div class='bg-danger'>$message</div>";
+    } else if (preg_match('/warn/i', $message)) {
+        // $message = preg_replace("/WARNING/i", '<b class="bg-warning text-dark">$0</b>', $message);
+        $message = "<div class='bg-warning text-dark'>$message</div>";
+    } else if (preg_match('/success/i', $message)) {
+        // $message = preg_replace("/success/i", '<b class="bg-success text-dark">$0</b>', $message);
+        $message = "<div class='bg-success'>$message</div>";
+    }
     echo $message . $eol;
 }
