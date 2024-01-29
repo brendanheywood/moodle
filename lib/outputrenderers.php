@@ -5657,11 +5657,63 @@ class core_renderer_cli extends core_renderer {
      * @return string A template fragment for a notification
      */
     public function notification($message, $type = null, $closebutton = true) {
+
+        $width = cli_get_terminal_width();
+        $indent = 3; // Indent on multi line messages.
+
+        // Handle both html input and text input with line breaks.
         $message = clean_text($message);
-        if ($type === 'notifysuccess' || $type === 'success') {
-            return "++ $message ++\n";
+        $message = trim($message);
+        $message = nl2br($message);
+        $message = html_to_text($message, $width - $indent);
+
+        switch ($type) {
+            case \core\output\notification::NOTIFY_WARNING:
+                $icon = '⚠';
+                $word = 'WARNING';
+                $colour = 'yellow';
+                break;
+            case \core\output\notification::NOTIFY_SUCCESS:
+                $icon = '✔';
+                $word = 'SUCCESS';
+                $colour = 'green';
+                break;
+            case \core\output\notification::NOTIFY_INFO:
+                $icon = 'ℹ';
+                $word = 'INFO';
+                $colour = 'cyan';
+                break;
+            case \core\output\notification::NOTIFY_ERROR:
+            default:
+                $icon = '✖';
+                $word = ' ERROR ';
+                $colour = 'red';
+                break;
         }
-        return "!! $message !!\n";
+
+        $ascii = " <colour:$colour>$icon<colour:normal> ";
+
+        // We hide the [] chars in color on the same colour so they look better
+        // but still cut and paste identically to when tty colour is disabled.
+        $ascii .= "<colour:$colour><bgcolour:$colour>[<colour:normal>";
+        $ascii .= "<colour:black><bgcolour:$colour>$word<colour:normal>";
+        $ascii .= "<colour:$colour><bgcolour:$colour>]<colour:normal>";
+
+        // If there are multiple lines then indent them to visually group the
+        // lines together.
+        $lines = explode("\n", $message);
+        $ascii .= " <colour:$colour>";
+        $ascii .= join("\n" . str_repeat(' ', $indent), $lines);
+        $ascii = rtrim($ascii);
+        $ascii .= "<colour:normal>\n";
+
+        if (count($lines) > 1 ) {
+            // Add an extra line after multiline messages to help separate
+            // them from the following content.
+            $ascii .= "\n";
+        }
+
+        return cli_ansi_format($ascii);
     }
 
     /**
