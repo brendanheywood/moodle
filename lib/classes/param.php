@@ -181,6 +181,11 @@ enum param: string {
     case SEQUENCE = 'sequence';
 
     /**
+     * PARAM_SQLCOMMENT - removes chars and sequences which break SQL comments.
+     */
+    case SQLCOMMENT = 'sqlcomment';
+
+    /**
      * PARAM_TAG - one tag (interests, blogs, etc.) - mostly international characters and space, <> not supported
      */
     case TAG = 'tag';
@@ -766,6 +771,31 @@ enum param: string {
     protected function clean_param_value_sequence(mixed $param): mixed {
         // Remove everything not `0-9,`.
         return preg_replace('/[^0-9,]/i', '', (string)$param);
+    }
+
+    /**
+     * Validation for PARAM_SQLCOMMENT.
+     *
+     * @param mixed $param
+     * @return mixed
+     */
+    protected function clean_param_value_sqlcomment(mixed $param): mixed {
+        // Remove closing comment block.
+        $param = preg_replace('/\*\//', ' ', $param);
+
+        // Disable MySQL SQL engine specific code in comments eg.
+        /*! MySQL-specific code. */
+        $param = preg_replace('/^!/', ' ', $param);
+
+        // Disable MySQL optimizer hints in comments eg.
+        /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx). */
+        $param = preg_replace('/^\+/', ' ', $param);
+
+        // Limited subset of chars but enough to allow most simple urls so we can
+        // reference moodle urls in an sql comment when debugging.
+        $param = preg_replace('/[^ -A-Za-z0-9\[\]\.\?\&\=\:\/]/i', '', (string)$param);
+
+        return $param;
     }
 
     /**

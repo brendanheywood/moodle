@@ -132,4 +132,40 @@ class param_test extends \advanced_testcase {
             ),
         );
     }
+
+    /**
+     * Provider for SQL comment cleaning
+     */
+    public static function sql_comment_provider(): array {
+        return [
+            'url' => [
+                'https://moodle.org',
+                'https://moodle.org',
+            ],
+            'mysql C-style comments' => [
+                '! MySQL comment',
+                '  MySQL comment',
+            ],
+            'mysql optimizer hint' => [
+                '+ BKA(t1)',
+                '  BKA(t1)',
+            ],
+            'closing comment' => [
+                ' */ bad sql',
+                '   bad sql',
+            ],
+        ];
+    }
+
+    /**
+     * Test that sql comments are cleaned correctly
+     *
+     * @dataProvider sql_comment_provider
+     * @param string $input
+     * @param string $expected
+     */
+    public function test_sql_comment_cleaner(string $input, string $expected): void {
+        $this->assertEquals($expected, clean_param($input, PARAM_SQLCOMMENT));
+    }
+
 }

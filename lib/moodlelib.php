@@ -338,6 +338,11 @@ define('PARAM_AREA', \core\param::AREA->value);
  */
 define('PARAM_PLUGIN', \core\param::PLUGIN->value);
 
+/**
+ * PARAM_SQLCOMMENT is used for strings used inside SQL comments. Anything resembling an SQL comment
+ * or a pragma, optimizer hints etc.
+ */
+define('PARAM_SQLCOMMENT', \core\param::SQLCOMMENT->value);
 
 // Web Services.
 
