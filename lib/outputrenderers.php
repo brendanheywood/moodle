@@ -687,7 +687,7 @@ class core_renderer extends renderer_base {
      * @return string HTML fragment.
      */
     public function standard_head_html() {
-        global $CFG, $SESSION, $SITE;
+        global $CFG, $SESSION, $SITE, $COURSE;
 
         // Before we output any content, we need to ensure that certain
         // page components are set up.
@@ -782,12 +782,65 @@ class core_renderer extends renderer_base {
             $output .= "\n".$CFG->additionalhtmlhead;
         }
 
-        if ($this->page->pagelayout == 'frontpage') {
-            $summary = s(strip_tags(format_text($SITE->summary, FORMAT_HTML)));
-            if (!empty($summary)) {
-                $output .= "<meta name=\"description\" content=\"$summary\" />\n";
+        // Expose existing page metadata as much as possible.
+        $cm = $this->page->cm;
+        if ($cm != null) {
+            // If we know we are inside an activity then use its metadata.
+            $array = convert_to_array($cm);
+
+            if ($this->page->activityrecord != null) {
+                // If we are deep inside an activity not just at it's top level page.
+                // We don't have cm_info structure here so just reuse the page title.
+                $title = $this->page->title;
+            } else {
+                $title = $COURSE->shortname . ': ' . $array['name'];
+            }
+            $description = $array['content'];
+
+        } else if ($COURSE->id != $SITE->id) {
+            // If inside a course use its metadata.
+            $title = $COURSE->fullname;
+            $description = $COURSE->summary;
+
+        } else {
+            // If nothing else then use site level metadata.
+            $title = '';
+            $description = $SITE->summary;
+        }
+
+        // Activites don't have a well defined image only courses.
+        if ($COURSE->id !== SITEID) {
+            $image = \core_course\external\course_summary_exporter::get_course_image($COURSE);
+            if (!$image) {
+                $context = context_course::instance($COURSE->id);
+                $image = $this->get_generated_url_for_course($context);
             }
         }
+
+        // Fall back to site logos is available.
+        if (!$image) {
+            $image = $this->get_logo_url();
+        }
+        if (!$image) {
+            $image = $this->get_compact_logo_url();
+        }
+
+        if ($title) {
+            $title = s(strip_tags(format_text($title)));
+            $output .= "<meta property=\"og:title\" content=\"$title\" />\n";
+        }
+
+        if ($description) {
+            $description = s(strip_tags(format_text($description)));
+            $output .= "<meta property=\"description\" content=\"$description\" />\n";
+        }
+
+        if ($image) {
+            $output .= "<meta property=\"og:image\" content=\"$image\" />\n";
+        }
+
+        $sitename = s(strip_tags(format_text($SITE->fullname)));
+        $output .= "<meta property=\"og:site_name\" content=\"$sitename\" />\n";
 
         return $output;
     }
