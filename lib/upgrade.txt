@@ -57,6 +57,7 @@ information provided here is intended especially for developers.
 * The nocache option for format_text has been removed. It was deprecated in Moodle 2.3.
 * The set_heading() method has a new parameter, $clean, to define whether the heading should be cleaned or not when no formatting
   is applied.
+* $CFG->forceloginforprofileimage is now independent of $CFG->forcelogin allowing avatars to be visbile while still forcing login.
 * The Horde library has been removed from core. It was only used by the tool_messageinbound. Now tool_messageinbound
   uses the new RoundCube library.
 * Visibility of internal properties of the \core\task\manager have been changed from public to protected. These should not have been accessible.
