@@ -59,8 +59,11 @@ class mod_url_mod_form extends moodleform_mod {
 
         if ($this->current->instance) {
             $options = resourcelib_get_displayoptions(explode(',', $config->displayoptions), $this->current->display);
+            $previewoptions = resourcelib_get_urlpreviewdisplayoptions(explode(',', $config->urlpreviewoptions), 
+                $this->current->urlpreview);
         } else {
             $options = resourcelib_get_displayoptions(explode(',', $config->displayoptions));
+            $previewoptions = resourcelib_get_urlpreviewdisplayoptions(explode(',', $config->urlpreviewoptions));
         }
         if (count($options) == 1) {
             $mform->addElement('hidden', 'display');
@@ -71,6 +74,17 @@ class mod_url_mod_form extends moodleform_mod {
             $mform->addElement('select', 'display', get_string('displayselect', 'url'), $options);
             $mform->setDefault('display', $config->display);
             $mform->addHelpButton('display', 'displayselect', 'url');
+        }
+
+        if (count($previewoptions) == 1) {
+            $mform->addElement('hidden', 'urlpreview');
+            $mform->setType('urlpreview', PARAM_INT);
+            reset($previewoptions);
+            $mform->setDefault('urlpreview', key($previewoptions));
+        } else {
+            $mform->addElement('select', 'urlpreview', get_string('urlpreviewselect', 'url'), $previewoptions);
+            $mform->setDefault('urlpreview', $config->urlpreview);
+            $mform->addHelpButton('urlpreview', 'urlpreviewselect', 'url');
         }
 
         if (array_key_exists(RESOURCELIB_DISPLAY_POPUP, $options)) {

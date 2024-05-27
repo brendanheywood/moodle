@@ -41,6 +41,18 @@ if ($ADMIN->fulltree) {
                                    RESOURCELIB_DISPLAY_POPUP,
                                   );
 
+    $urlpreviewoptions = resourcelib_get_urlpreviewdisplayoptions([
+        RESOURCELIB_DISPLAY_FULL,
+        RESOURCELIB_DISPLAY_SLIM,
+        RESOURCELIB_DISPLAY_NONE,
+    ]);
+
+    $defaulturlpreviewoptions = [
+        RESOURCELIB_DISPLAY_FULL,
+        RESOURCELIB_DISPLAY_SLIM,
+        RESOURCELIB_DISPLAY_NONE,
+    ];
+
     //--- general settings -----------------------------------------------------------------------------------
     $settings->add(new admin_setting_configtext('url/framesize',
         get_string('framesize', 'url'), get_string('configframesize', 'url'), 130, PARAM_INT));
@@ -54,6 +66,9 @@ if ($ADMIN->fulltree) {
     $settings->add(new admin_setting_configmultiselect('url/displayoptions',
         get_string('displayoptions', 'url'), get_string('configdisplayoptions', 'url'),
         $defaultdisplayoptions, $displayoptions));
+    $settings->add(new admin_setting_configmultiselect('url/urlpreviewoptions',
+        get_string('urlpreviewoptions', 'url'), get_string('configurlpreviewoptions', 'url'),
+        $defaulturlpreviewoptions, $urlpreviewoptions));
 
     //--- modedit defaults -----------------------------------------------------------------------------------
     $settings->add(new admin_setting_heading('urlmodeditdefaults', get_string('modeditdefaults', 'admin'), get_string('condifmodeditdefaults', 'admin')));

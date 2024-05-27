@@ -98,7 +98,7 @@ function url_add_instance($data, $mform) {
     global $CFG, $DB;
 
     require_once($CFG->dirroot.'/mod/url/locallib.php');
-
+    $config = get_config('url');
     $parameters = array();
     for ($i=0; $i < 100; $i++) {
         $parameter = "parameter_$i";
@@ -209,11 +209,13 @@ function url_delete_instance($id) {
  * @return cached_cm_info info
  */
 function url_get_coursemodule_info($coursemodule) {
-    global $CFG, $DB;
+    global $CFG, $DB, $OUTPUT;
+
     require_once("$CFG->dirroot/mod/url/locallib.php");
+    require_once("$CFG->dirroot/lib/classes/url/unfurler.php");
 
     if (!$url = $DB->get_record('url', array('id'=>$coursemodule->instance),
-            'id, name, display, displayoptions, externalurl, parameters, intro, introformat')) {
+            'id, name, display, displayoptions, externalurl, parameters, intro, introformat, urlpreview')) {
         return NULL;
     }
 
@@ -242,6 +244,38 @@ function url_get_coursemodule_info($coursemodule) {
     if ($coursemodule->showdescription) {
         // Convert intro to html. Do not filter cached version, filters run at display time.
         $info->content = format_module_intro('url', $url, $coursemodule->id, false);
+    }
+
+    $unfurler = new unfurl($url->externalurl);
+    $urlpreview = $url->urlpreview;
+
+    if ($urlpreview == RESOURCELIB_DISPLAY_FULL) {
+        $metadata = [
+            'title' => $unfurler->title ?: format_string($url->name),
+            'sitename' => $unfurler->sitename,
+            'image' => $unfurler->image,
+            'description' => $unfurler->description,
+            'canonicalurl' => $unfurler->canonicalurl ?: $url->externalurl,
+        ];
+        $info->content = $OUTPUT->render_from_template('core/url_preview_card', $metadata);
+    } else if ($urlpreview == RESOURCELIB_DISPLAY_SLIM) {
+        $metadata = [
+            'title' => $unfurler->title ?: format_string($url->name),
+            'sitename' => $unfurler->sitename,
+            'image' => $unfurler->image,
+            'description' => $unfurler->description,
+            'canonicalurl' => $unfurler->canonicalurl ?: $url->externalurl,
+        ];
+
+        $info->content = $OUTPUT->render_from_template('core/url_preview_slim', $metadata);
+    } else {
+        $metadata = [
+            'title' => $unfurler->title ?: format_string($url->name),
+            'sitename' => $unfurler->sitename,
+            'image' => $unfurler->image,
+            'description' => $unfurler->description,
+            'canonicalurl' => $unfurler->canonicalurl ?: $url->externalurl,
+        ];
     }
 
     $info->customdata['display'] = $display;

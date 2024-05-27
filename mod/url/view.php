@@ -32,6 +32,7 @@ $id       = optional_param('id', 0, PARAM_INT);        // Course module ID
 $u        = optional_param('u', 0, PARAM_INT);         // URL instance id
 $redirect = optional_param('redirect', 0, PARAM_BOOL);
 $forceview = optional_param('forceview', 0, PARAM_BOOL);
+$previewtype = optional_param('preview', '', PARAM_ALPHA);
 
 if ($u) {  // Two ways to specify the module
     $url = $DB->get_record('url', array('id'=>$u), '*', MUST_EXIST);
