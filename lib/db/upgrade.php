@@ -1129,46 +1129,34 @@ function xmldb_main_upgrade($oldversion) {
         upgrade_main_savepoint(true, 2024030500.02);
     }
 
-    if ($oldversion < 2024032600.01) {
+    if ($oldversion < 2024032200) {
 
-        // Changing precision of field attemptsavailable on table task_adhoc to (2).
-        $table = new xmldb_table('task_adhoc');
-        $field = new xmldb_field('attemptsavailable', XMLDB_TYPE_INTEGER, '2', null, null, null, null, 'pid');
+        // Define table urlpreview to be created.
+        $table = new xmldb_table('urlpreview');
 
-        // Launch change of precision for field.
-        if (!$dbman->field_exists($table, $field)) {
-            $dbman->change_field_precision($table, $field);
+        // Adding fields to table urlpreview.
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('url', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL, null, null);
+        $table->add_field('title', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('type', XMLDB_TYPE_CHAR, '255', null, null, null, null);
+        $table->add_field('imageurl', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        $table->add_field('sitename', XMLDB_TYPE_CHAR, '255', null, null, null, null);
+        $table->add_field('description', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('lastpreviewed', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+
+        // Adding keys to table urlpreview.
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+
+        // Conditionally launch create table for urlpreview.
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
         }
 
-        // Main savepoint reached.
-        upgrade_main_savepoint(true, 2024032600.01);
+        // Urlpreview savepoint reached.
+        upgrade_main_savepoint(true, 2024042500);
     }
-
-    if ($oldversion < 2024041200.00) {
-        // Define field blocking to be dropped from task_adhoc.
-        $table = new xmldb_table('task_adhoc');
-        $field = new xmldb_field('blocking');
-
-        // Conditionally launch drop field blocking.
-        if ($dbman->field_exists($table, $field)) {
-            $dbman->drop_field($table, $field);
-        }
-
-        // Define field blocking to be dropped from task_scheduled.
-        $table = new xmldb_table('task_scheduled');
-        $field = new xmldb_field('blocking');
-
-        // Conditionally launch drop field blocking.
-        if ($dbman->field_exists($table, $field)) {
-            $dbman->drop_field($table, $field);
-        }
-
-        // Main savepoint reached.
-        upgrade_main_savepoint(true, 2024041200.00);
-    }
-
-    // Automatically generated Moodle v4.4.0 release upgrade line.
-    // Put any upgrade step following this.
 
     return true;
 }

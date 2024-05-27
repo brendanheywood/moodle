@@ -3195,6 +3195,12 @@ $functions = array(
         'type'        => 'read',
         'ajax'        => true,
     ],
+    'core_url_get_preview' => [
+        'classname'   => 'core\external\get_preview',
+        'description' => 'Gets the preview for a given url',
+        'type'        => 'write',
+        'ajax'        => true,
+    ],
 );
 
 $services = array(

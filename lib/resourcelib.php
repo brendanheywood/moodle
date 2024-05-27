@@ -40,7 +40,12 @@ define('RESOURCELIB_DISPLAY_DOWNLOAD', 4);
 define('RESOURCELIB_DISPLAY_OPEN', 5);
 /** Open in "emulated" pop-up without navigation */
 define('RESOURCELIB_DISPLAY_POPUP', 6);
-
+/** Display full frame */
+define('RESOURCELIB_DISPLAY_FULL', 7);
+/** Display slim frame */
+define('RESOURCELIB_DISPLAY_SLIM', 8);
+/** Display none */
+define('RESOURCELIB_DISPLAY_NONE', 9);
 /** Legacy files not needed or new resource */
 define('RESOURCELIB_LEGACYFILES_NO', 0);
 /** Legacy files conversion marked as completed */
@@ -134,6 +139,29 @@ function resourcelib_get_displayoptions(array $enabled, $current=null) {
         $result[RESOURCELIB_DISPLAY_OPEN] = $options[RESOURCELIB_DISPLAY_OPEN];
     }
 
+    return $result;
+}
+/**
+ * Returns list of available urlpreview options
+ * @param array $enabled list of options enabled in module configuration
+ * @param int|null $current current display options for existing instances
+ * @return array of key=>name pairs
+ */
+function resourcelib_get_urlpreviewdisplayoptions(array $enabled, $current=null) {
+    if (is_number($current)) {
+        $enabled[] = $current;
+    }
+    $options = [RESOURCELIB_DISPLAY_FULL    => get_string('resourcedisplayfull'),
+                RESOURCELIB_DISPLAY_SLIM    => get_string('resourcedisplayslim'),
+                RESOURCELIB_DISPLAY_NONE    => get_string('resourcedisplaynone')];
+
+    $result = [];
+
+    foreach ($options as $key => $value) {
+        if (in_array($key, $enabled)) {
+            $result[$key] = $value;
+        }
+    }
     return $result;
 }
 

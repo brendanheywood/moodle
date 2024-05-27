@@ -1,0 +1,55 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template core/url_preview_slim
+    Template for url preview element
+
+    Example context (json):
+    {
+        "image": "https://moodle.org/logo/moodle-logo.svg",
+        "title": "Title example",
+        "description": "Description example",
+        "sitename": "Name example",
+        "canonicalurl": "https://moodle.org/"
+    }
+}}
+
+<div class="p-2" style="padding: 0px !important;">
+    <div class="border shadow-sm rounded">
+        <div class="row no-gutters">
+            <div class="col-md-2">
+                {{#image}}
+                    <img class="rounded-left" style="width: 90%; border-radius: 0; height: 100%; object-fit: cover;" src="{{{.}}}" alt="">
+                {{/image}}
+            </div>
+            <div class="col-md-10">
+                <div class="py-2 px-0">
+                    {{#title}}
+                    <div class="text-truncate my-0 pr-2">
+                        <b class="text-truncate my-0"><a href="{{{canonicalurl}}}" target="_blank" class="card-title stretched-link">{{.}}</a></b>
+                    </div>
+                    {{/title}}
+                    {{#description}}
+                        <div class="text-truncate my-0 pr-2">
+                            {{#sitename}}<small class="card-text text-muted text-uppercase">{{.}}｜</small>{{/sitename}}{{.}}
+                        </div>
+                    {{/description}}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
