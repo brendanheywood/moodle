@@ -1,0 +1,37 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template tool_urlpreview/form
+    This is the template that is rendered for the url Metadata Preview form
+    
+    Example context (json):
+    {
+        "action" : "index.php", 
+        "submittedUrl" : "https://moodle.org/"
+    }
+}}
+<form action="{{action}}" method="get" class="simplesearchform mb-3">
+    <div class="input-group">
+        <label for="url" class="sr-only">{{#str}}url, tool_urlpreview{{/str}}</label>
+        <input id="url" type="text" name="url" class="form-control form-control-sm" placeholder="{{#str}}url, tool_urlpreview{{/str}}" required value="{{submittedUrl}}">
+        <div class="input-group-append">
+            <input type="submit" class="btn btn-sm btn-primary" value="{{#str}}preview, tool_urlpreview{{/str}}">
+        </div>
+    </div>
+    <div id="previewField">
+    </div>
+</form>
