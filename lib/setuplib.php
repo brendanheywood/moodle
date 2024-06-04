@@ -363,11 +363,11 @@ function get_whoops(): ?\Whoops\Run {
         return null;
     }
 
-    if (!$CFG->debugdisplay) {
+    if (empty($CFG->debugdisplay)) {
         return null;
     }
 
-    if (!$CFG->debug_developer_use_pretty_exceptions) {
+    if (empty($CFG->debug_developer_use_pretty_exceptions)) {
         return null;
     }
 
