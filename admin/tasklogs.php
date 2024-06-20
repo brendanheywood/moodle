@@ -49,9 +49,33 @@ if (null !== $logid) {
     if ($download) {
         $filename = str_replace('\\', '_', $log->classname) . "-{$log->id}.log";
         header("Content-Disposition: attachment; filename=\"{$filename}\"");
+        readstring_accel($log->output, 'text/plain');
     }
 
-    readstring_accel($log->output, 'text/plain');
+    $title = $log->classname;
+    $title .= " ($log->id)";
+
+    $PAGE->navbar->add($title, '');
+    echo $OUTPUT->header();
+    echo html_writer::start_tag('pre', ['class' => 'task-output', 'style' => 'min-height: 24lh']);
+    echo $log->output;
+    echo html_writer::end_tag('pre');
+    echo $OUTPUT->action_link(
+        new moodle_url('/admin/tasklogs.php'),
+        $strheading,
+        null,
+        null,
+        new pix_icon('i/log', ''),
+    );
+    echo ' ';
+    echo $OUTPUT->action_link(
+        new moodle_url('/admin/tasklogs.php', ['logid' => $log->id, 'download' => true]),
+        new lang_string('download'),
+        null,
+        null,
+        new pix_icon('t/download', ''),
+    );
+    echo $OUTPUT->footer();
     exit;
 }
 
