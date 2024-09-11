@@ -86,6 +86,8 @@ class report_log_renderer extends plugin_renderer_base {
      * @param report_log_renderable $reportlog log report.
      */
     public function report_selector_form(report_log_renderable $reportlog) {
+        global $DB;
+
         echo html_writer::start_tag('form', array('class' => 'logselecform', 'action' => $reportlog->url, 'method' => 'get'));
         echo html_writer::start_div();
         echo html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'chooselog', 'value' => '1'));
@@ -98,6 +100,9 @@ class report_log_renderer extends plugin_renderer_base {
         // Add course selector.
         $sitecontext = context_system::instance();
         $courses = $reportlog->get_course_list();
+
+// TODO if course deleted then show phantom course id 
+
         if (!empty($courses) && $reportlog->showcourses) {
             echo html_writer::label(get_string('selectacourse'), 'menuid', false, array('class' => 'accesshide'));
             echo html_writer::select($courses, "id", $selectedcourseid, null, ['class' => 'me-2 mb-2']);
@@ -161,7 +166,15 @@ class report_log_renderer extends plugin_renderer_base {
             ['class' => 'me-2 mb-2']);
 
         // Add activity selector.
-        [$activities, $disabled] = $reportlog->get_activities_list();
+// dont call this if no course
+        // Has the course been deleted?
+
+        $course = $DB->get_record('course', ['id' => $this->course->id]);
+        $activities = [];
+        $disabled = [];
+        if ($course) {
+            [$activities, $disabled] = $reportlog->get_activities_list();
+        }
         echo html_writer::label(get_string('activities'), 'menumodid', false, array('class' => 'accesshide'));
         echo html_writer::select($activities, "modid", $reportlog->modid, get_string("allactivities"),
             ['class' => 'me-2 mb-2'], $disabled);

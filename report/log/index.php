@@ -99,17 +99,20 @@ $url = new moodle_url("/report/log/index.php", $params);
 $PAGE->set_url('/report/log/index.php', array('id' => $id));
 $PAGE->set_pagelayout('report');
 
+$course = $SITE;
+require_login();
+$context = context_system::instance();
+
 // Get course details.
 if ($id != $SITE->id) {
-    $course = $DB->get_record('course', array('id' => $id), '*', MUST_EXIST);
-    require_login($course);
-    $context = context_course::instance($course->id);
-} else {
-    $course = $SITE;
-    require_login();
-    $context = context_system::instance();
-    $PAGE->set_context($context);
+    $course = $DB->get_record('course', array('id' => $id), '*');
+    if ($course) {
+        require_login($course);
+        $context = context_course::instance($course->id);
+    }
 }
+
+$PAGE->set_context($context);
 
 require_capability('report/log:view', $context);
 

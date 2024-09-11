@@ -206,6 +206,7 @@ class report_log_renderable implements renderable {
             return [$activities, $disabled];
         }
 
+
         $modinfo = get_fast_modinfo($this->course);
         $delegatedsections = $modinfo->get_sections_delegated_by_cm();
 

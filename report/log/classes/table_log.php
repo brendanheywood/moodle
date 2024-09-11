@@ -102,7 +102,8 @@ class report_log_table_log extends table_sql {
      * @deprecated since Moodle 2.9 MDL-48595 - please do not use this function any more.
      */
     public function col_course($event) {
-        throw new coding_exception('col_course() can not be used any more, there is no such column.');
+        // throw new coding_exception('col_course() can not be used any more, there is no such column.');
+    return 'missing course';
     }
 
     /**
@@ -418,7 +419,7 @@ class report_log_table_log extends table_sql {
      * @param bool $useinitialsbar do you want to use the initials bar.
      */
     public function query_db($pagesize, $useinitialsbar = true) {
-        global $DB, $USER;
+        global $DB, $USER, $SITE;
 
         $joins = array();
         $params = array();
@@ -492,7 +493,11 @@ class report_log_table_log extends table_sql {
         if ($this->filterparams->modid) {
             $context = context_module::instance($this->filterparams->modid);
         } else {
-            $context = context_course::instance($this->filterparams->courseid);
+            try {
+                $context = context_course::instance($this->filterparams->courseid);
+            } catch (dml_missing_record_exception $e) {
+                $context = context_system::instance();
+            }
         }
         if (!has_capability('moodle/site:viewanonymousevents', $context)) {
             $joins[] = "anonymous = 0";
