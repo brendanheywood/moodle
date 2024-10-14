@@ -43,9 +43,6 @@ $coursecontext = context_course::instance($course->id);
 require_login();
 
 if (has_capability('moodle/user:loginas', $systemcontext)) {
-    if (is_siteadmin($userid)) {
-        throw new \moodle_exception('nologinas');
-    }
     $context = $systemcontext;
     $PAGE->set_context($context);
 } else {
