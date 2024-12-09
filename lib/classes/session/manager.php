@@ -425,6 +425,15 @@ class manager {
         }
         $record = self::get_session_by_sid($sid);
         if (!isset($record->sid)) {
+
+            if (defined('READ_ONLY_SESSION') && READ_ONLY_SESSION) {
+                // If we do not have a session and the page is declared as readonly then
+                // treat it like NO_MOODLE_COOKIES and don't write a new session.
+                self::$sessionactive = false;
+                self::init_empty_session();
+                return;
+            }
+
             if (!$newsid) {
                 if (!empty($_SESSION['USER']->id)) {
                     // This should not happen, just log it, we MUST not produce any output here!

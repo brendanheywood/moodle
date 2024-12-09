@@ -27,6 +27,8 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+define('READ_ONLY_SESSION', true);
+
 require('../config.php'); // phpcs:ignore
 
 // Until we have a more robust routing api in place this is a very simple
