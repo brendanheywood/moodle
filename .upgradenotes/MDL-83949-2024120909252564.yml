@@ -1,0 +1,7 @@
+issueNumber: MDL-83949
+notes:
+  core_auth:
+    - message: |
+        The contact form inside the 404 error page handler has been removed
+        in favor of the pre-existing Contact site support form.
+      type: removed

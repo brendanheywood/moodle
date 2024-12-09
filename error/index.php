@@ -51,52 +51,8 @@ if ($code == 404) {
     header("HTTP/1.0 404 Not Found");
 }
 
-$canmessage = has_capability('moodle/site:senderrormessage', $context);
-
-$supportuser = core_user::get_support_user();
-
-// We can only message support if both the user has the capability
-// and the support user is a real user.
-if ($canmessage) {
-    $canmessage = core_user::is_real_user($supportuser->id);
-}
-
-$mform = new \core\form\error_feedback($CFG->wwwroot . '/error/index.php');
-
-if ($data = $mform->get_data()) {
-
-    if (!$canmessage) {
-        redirect($CFG->wwwroot);
-    }
-
-    // Send the message and redirect.
-    $message = new \core\message\message();
-    $message->courseid         = SITEID;
-    $message->component        = 'moodle';
-    $message->name             = 'errors';
-    $message->userfrom          = $USER;
-    $message->userto            = core_user::get_support_user();
-    $message->subject           = 'Error: '. $data->referer .' -> '. $data->requested;
-    $message->fullmessage       = $data->text;
-    $message->fullmessageformat = FORMAT_PLAIN;
-    $message->fullmessagehtml   = '';
-    $message->smallmessage      = '';
-    $message->contexturl = $data->requested;
-    message_send($message);
-
-    redirect($CFG->wwwroot, get_string('sendmessagesent', 'error', $data->requested), 5);
-    exit;
-}
-
 echo $OUTPUT->header();
 echo $OUTPUT->notification(get_string('pagenotexist', 'error', s($ME)), 'error');
 echo $OUTPUT->supportemail(['class' => 'text-center d-block mb-3 fw-bold']);
-
-if ($canmessage) {
-    echo \html_writer::tag('h4', get_string('sendmessage', 'error'));
-    $mform->display();
-} else {
-    echo $OUTPUT->continue_button($CFG->wwwroot);
-}
-
+echo $OUTPUT->continue_button($CFG->wwwroot);
 echo $OUTPUT->footer();
