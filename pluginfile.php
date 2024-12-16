@@ -24,6 +24,8 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+define('READ_ONLY_SESSION', true);
+
 // Disable moodle specific debug messages and any errors in output.
 if (!defined('NO_DEBUG_DISPLAY')) {
     define('NO_DEBUG_DISPLAY', true);
