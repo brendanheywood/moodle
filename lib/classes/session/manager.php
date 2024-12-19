@@ -1484,6 +1484,7 @@ class manager {
      * @param array $current
      * @return array
      */
+// TODO should this be public?
     private static function array_session_diff(array $previous, array $current): array {
         // To use array_udiff_uassoc, the first array must have the most keys; this ensures every key is checked.
         // To do this, we first need to sort them by the length of their keys.
