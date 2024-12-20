@@ -397,7 +397,7 @@ class manager {
         ini_set('session.use_trans_sid', '0');
         ini_set('session.use_only_cookies', '1');
         ini_set('session.use_strict_mode', '0');      // We have custom protection in session init.
-        ini_set('session.serialize_handler', 'php');  // We can move to 'php_serialize' after we require PHP 5.5.4 form Moodle.
+        ini_set('session.serialize_handler', 'php_serialize');
 
         // Moodle does normal session timeouts, this is for leftovers only.
         ini_set('session.gc_probability', 1);
