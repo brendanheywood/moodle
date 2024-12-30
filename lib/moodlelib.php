@@ -1519,6 +1519,7 @@ function set_user_preference($name, $value, $user = null) {
         return true;
     }
 
+    $transaction = $DB->start_delegated_transaction();
     if ($preference = $DB->get_record('user_preferences', array('userid' => $user->id, 'name' => $name))) {
         if ($preference->value === $value and isset($user->preference[$name]) and $user->preference[$name] === $value) {
             // Preference already set to this value.
@@ -1533,6 +1534,7 @@ function set_user_preference($name, $value, $user = null) {
         $preference->value  = $value;
         $DB->insert_record('user_preferences', $preference);
     }
+    $DB->commit_delegated_transaction($transaction);
 
     // Update value in cache.
     $user->preference[$name] = $value;
