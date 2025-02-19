@@ -1519,22 +1519,31 @@ function set_user_preference($name, $value, $user = null) {
         return true;
     }
 
-    $transaction = $DB->start_delegated_transaction();
-    if ($preference = $DB->get_record('user_preferences', array('userid' => $user->id, 'name' => $name))) {
-        if ($preference->value === $value and isset($user->preference[$name]) and $user->preference[$name] === $value) {
-            // Preference already set to this value.
-            return true;
-        }
-        $DB->set_field('user_preferences', 'value', $value, array('id' => $preference->id));
+    $retry = 0;
+    $saved = 0;
 
-    } else {
-        $preference = new stdClass();
-        $preference->userid = $user->id;
-        $preference->name   = $name;
-        $preference->value  = $value;
-        $DB->insert_record('user_preferences', $preference);
+    while (!$saved && $retry++ < 2) {
+        if ($preference = $DB->get_record('user_preferences', ['userid' => $user->id, 'name' => $name])) {
+            if ($preference->value === $value && isset($user->preference[$name]) && $user->preference[$name] === $value) {
+                // Preference already set to this value.
+                return true;
+            }
+            $DB->set_field('user_preferences', 'value', $value, ['id' => $preference->id]);
+            $saved = 1;
+        } else {
+            $preference = new stdClass();
+            $preference->userid = $user->id;
+            $preference->name   = $name;
+            $preference->value  = $value;
+            try {
+                $DB->insert_record('user_preferences', $preference);
+                $saved = 1;
+            } catch (dml_write_exception $e) {
+                // We have an insert race, so just ignore and try again.
+                $saved = 0;
+            }
+        }
     }
-    $DB->commit_delegated_transaction($transaction);
 
     // Update value in cache.
     $user->preference[$name] = $value;
