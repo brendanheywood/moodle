@@ -94,6 +94,7 @@ class task_logs extends system_report {
         $entitymainalias = $this->get_entity('task_log')->get_table_alias('task_log');
 
         $this->add_columns_from_entities([
+            'task_log:result',
             'task_log:name',
             'task_log:type',
             'user:fullname',
@@ -102,7 +103,8 @@ class task_logs extends system_report {
             'task_log:hostname',
             'task_log:pid',
             'task_log:database',
-            'task_log:result',
+            'task_log:id',
+            'task_log:custom_data',
         ]);
 
         // Wrap the task name in a link.
@@ -112,12 +114,40 @@ class task_logs extends system_report {
                 return html_writer::link(new moodle_url('/admin/tasklogs.php', ['logid' => $row->id]), $output);
             });
 
+        // Wrap the task result in a label.
+        $this->get_column('task_log:result')
+            ->add_callback(static function(string $output, stdClass $row): string {
+                return html_writer::tag('span', $output, [
+                    'class' => 'badge ' . ( $row->success ? 'badge-success' : 'badge-danger' )
+                ]);
+            });
+
+        // Nicely format the custom data.
+        $this->get_column('task_log:custom_data')
+            ->add_callback(static function(string $output = null, stdClass $row): string {
+                if (!$output) {
+                    return '';
+                }
+                $data = json_encode(json_decode($row->custom_data), JSON_PRETTY_PRINT);
+                return "<pre class='m-0'><small>$data</small></pre>";
+            });
+
         // Rename the user fullname column.
         $this->get_column('user:fullname')
             ->set_title(new lang_string('user', 'admin'));
 
         // It's possible to set a default initial sort direction for one column.
         $this->set_initial_sort_column('task_log:starttime', SORT_DESC);
+    }
+
+    /**
+     * Row class
+     *
+     * @param \stdClass $row
+     * @return string
+     */
+    public function get_row_class(\stdClass $row): string {
+        return $row->c1_success ? '' : 'table-danger';
     }
 
     /**
@@ -130,10 +160,12 @@ class task_logs extends system_report {
         $this->add_filters_from_entities([
             'task_log:name',
             'task_log:type',
-            'task_log:output',
             'task_log:result',
+            'task_log:output',
             'task_log:timestart',
             'task_log:duration',
+            'task_log:id',
+            'task_log:custom_data',
         ]);
     }
 

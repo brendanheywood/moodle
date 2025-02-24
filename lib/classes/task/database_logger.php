@@ -77,6 +77,7 @@ class database_logger implements task_logger {
             'output' => file_get_contents($logpath),
             'hostname' => $task->get_hostname(),
             'pid' => $task->get_pid(),
+            'custom_data' => is_a($task, adhoc_task::class) ? json_encode($task->get_custom_data()) : null,
         ];
 
         if (is_a($task, adhoc_task::class) && $userid = $task->get_userid()) {

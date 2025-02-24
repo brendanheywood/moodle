@@ -1684,5 +1684,18 @@ function xmldb_main_upgrade($oldversion) {
     // Automatically generated Moodle v5.0.0 release upgrade line.
     // Put any upgrade step following this.
 
+    if ($oldversion < 2025050900.01) {
+
+        // Define field custom_data to be added to task_log.
+        $table = new xmldb_table('task_log');
+        $field = new xmldb_field('custom_data', XMLDB_TYPE_TEXT, null, null, null, null, null, 'pid');
+
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        // Conditionally launch add field custom_data.
+        upgrade_main_savepoint(true, 2025050900.01);
+    }
+
     return true;
 }

@@ -53,6 +53,7 @@ class running_tasks_table extends \table_sql {
             'timestarted'  => get_string('started', 'tool_task'),
             'hostname'     => get_string('hostname', 'tool_task'),
             'pid'          => get_string('pid', 'tool_task'),
+            'customdata'   => get_string('taskcustomdata', 'tool_task'),
         ];
         $this->define_columns(array_keys($columnheaders));
         $this->define_headers(array_values($columnheaders));
@@ -175,6 +176,21 @@ class running_tasks_table extends \table_sql {
         } else {
             return '-';
         }
+    }
+
+    /**
+     * Format the custom data.
+     *
+     * @param   \stdClass $row
+     * @return  string
+     * @throws  \coding_exception
+     */
+    public function col_customdata($row): string {
+        if (!$row->customdata) {
+            return '';
+        }
+        $data = json_encode(json_decode($row->customdata), JSON_PRETTY_PRINT);
+        return "<pre class='m-0'><small>$data</small></pre>";
     }
 
 }
