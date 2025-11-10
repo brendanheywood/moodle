@@ -137,11 +137,27 @@ class tool_task_renderer extends plugin_renderer_base {
                     $nextrun = userdate($stats['nextruntime']);
                 }
 
+                // Check if the adhoc task has schedule.
+                $scheduledadhoctask = \core\task\manager::get_scheduled_adhoc_task($classname);
+                $futurecontent = $stats['count'] - $stats['running'] - $stats['due'];
+                if ($scheduledadhoctask && $futurecontent) {
+                    $futurecontent .= html_writer::div(
+                        html_writer::link(
+                            new moodle_url(
+                                $adhocrunurl,
+                                ['classname' => $classname]
+                            ),
+                            get_string('runclassname', 'tool_task')
+                        ),
+                        'task-runnow'
+                    );
+                }
+
                 $data[] = new html_table_row([
                     $classcell,
                     new html_table_cell($stats['running']),
                     new html_table_cell($duecontent),
-                    new html_table_cell($stats['count'] - $stats['running'] - $stats['due']),
+                    new html_table_cell($futurecontent),
                     $failedcell,
                     new html_table_cell($nextrun),
                 ]);
@@ -248,7 +264,7 @@ class tool_task_renderer extends plugin_renderer_base {
     private function generate_adhoc_tasks_simple_table(array $tasks, bool $wantruntasks = false): html_table {
         $adhocrunurl = '/admin/tool/task/run_adhoctasks.php';
         $adhocdeleteurl = '/admin/tool/task/delete_adhoctasks.php';
-        $now = time();
+        $now = \core\di::get(\core\clock::class)->time();
         $failedstr = get_string('failed', 'tool_task');
 
         // Main tasks table.
@@ -296,8 +312,10 @@ class tool_task_renderer extends plugin_renderer_base {
                     $nextrun = get_string('never', 'admin');
                 }
 
-                if ($wantruntasks && ($faildelay || $due)) {
-                    $nextrun .= ' '.html_writer::div(
+                // Check if the adhoc task has schedule.
+                $scheduledadhoctask = \core\task\manager::get_scheduled_adhoc_task(get_class($task));
+                if (($wantruntasks && ($faildelay || $due)) || $scheduledadhoctask) {
+                    $nextrun .= ' ' . html_writer::div(
                         html_writer::link(
                             new moodle_url(
                                 $adhocrunurl,
@@ -527,6 +545,114 @@ class tool_task_renderer extends plugin_renderer_base {
             // has the method, but then errors on 'centre'. So, just try to scroll, and if it fails, don't care.
             $this->page->requires->js_init_code(
                     'try{document.querySelector("tr.table-primary").scrollIntoView({block: "center"});}catch(e){}');
+        }
+        return html_writer::table($table);
+    }
+
+    /**
+     * Render a table with all available scheduled adhoc tasks.
+     *
+     * @param \core\task\adhoc_task_scheduled[] $tasks - list of all scheduled tasks.
+     * @param string $lastchanged (optional) the last task edited. Gets highlighted in teh table.
+     * @return string HTML to output.
+     */
+    public function scheduled_adhoc_tasks_table(array $tasks, string $lastchanged = ''): string {
+        global $CFG;
+
+        $showloglink = \core\task\logmanager::has_log_report();
+
+        $table = new html_table();
+        $table->caption = get_string('scheduledadhoctasks', 'tool_task');
+        $table->head = [
+            get_string('name'),
+            get_string('component', 'tool_task'),
+            get_string('edit'),
+            get_string('logs'),
+            get_string('enabled', 'tool_task'),
+            get_string('taskscheduleminute', 'tool_task'),
+            get_string('taskschedulehour', 'tool_task'),
+            get_string('taskscheduleday', 'tool_task'),
+            get_string('taskscheduledayofweek', 'tool_task'),
+            get_string('taskschedulemonth', 'tool_task'),
+        ];
+
+        $table->attributes['class'] = 'admintable table generaltable table-hover';
+        $table->colclasses = [];
+
+        if (!$showloglink) {
+            // Hide the log links.
+            $table->colclasses['3'] = 'hidden';
+        }
+
+        $data = [];
+        $yes = get_string('yes');
+        $no = get_string('no');
+        foreach ($tasks as $task) {
+            $classname = $task->get_classname();
+            $enabled = $task->is_enabled() ? $yes : $no;
+            $customised = $task->is_customised() ? $no : $yes;
+            if (empty($CFG->preventscheduledtaskchanges) && !$task->is_overridden()) {
+                $configureurl = new moodle_url(
+                    '/admin/tool/task/scheduledadhoctasks.php',
+                    ['action' => 'edit', 'task' => $classname]
+                );
+                $editlink = $this->output->action_icon(
+                    $configureurl,
+                    new pix_icon('t/edit', get_string('editstaskscheduledadhoc', 'tool_task', $task->get_name()))
+                );
+            } else {
+                $editlink = $this->render(
+                    new pix_icon('t/locked', get_string('scheduledtaskchangesdisabled', 'tool_task'))
+                );
+            }
+
+            $loglink = '';
+            if ($showloglink) {
+                $loglink = $this->output->action_icon(
+                    \core\task\logmanager::get_url_for_task_class($classname),
+                    new pix_icon('e/file-text', get_string('viewlogs', 'tool_task', $task->get_name()))
+                );
+            }
+            $namecellcontent = $task->get_name() . "\n" .
+                html_writer::span('\\' . $classname, 'task-class text-ltr');
+            if ($task->is_overridden()) {
+                // Let the user know the scheduled task is defined in config.
+                $namecellcontent .= "\n" . html_writer::div(get_string('configoverride', 'admin'), 'alert-info');
+            }
+            $namecell = new html_table_cell($namecellcontent);
+            $namecell->header = true;
+            $namecell->id = scheduled_task::get_html_id($classname);
+
+            $row = new html_table_row([
+                $namecell,
+                new html_table_cell($this->component_name($task->get_component())),
+                new html_table_cell($editlink),
+                new html_table_cell($loglink),
+                new html_table_cell($enabled),
+                $this->time_cell($task->get_minute(), '*'),
+                $this->time_cell($task->get_hour(), '*'),
+                $this->time_cell($task->get_day(), '*'),
+                $this->time_cell($task->get_day_of_week(), '*'),
+                $this->time_cell($task->get_month(), '*'),
+            ]);
+
+            $classes = [];
+            if (!$task->is_enabled()) {
+                $classes[] = 'disabled';
+            }
+            if ($task->get_classname() == $lastchanged) {
+                $classes[] = 'table-primary';
+            }
+            $row->attributes['class'] = implode(' ', $classes);
+            $data[] = $row;
+        }
+        $table->data = $data;
+        if ($lastchanged) {
+            // IE does not support this, and the ancient version of Firefox we use for Behat
+            // has the method, but then errors on 'centre'. So, just try to scroll, and if it fails, don't care.
+            $this->page->requires->js_init_code(
+                'try{document.querySelector("tr.table-primary").scrollIntoView({block: "center"});}catch(e){}'
+            );
         }
         return html_writer::table($table);
     }

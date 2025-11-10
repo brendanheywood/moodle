@@ -635,6 +635,7 @@ function upgrade_component_updated(string $component, string $messageplug = '',
     external_update_descriptions($component);
     core_upgrade_time::record_detail('external_update_descriptions');
     \core\task\manager::reset_scheduled_tasks_for_component($component);
+    \core\task\manager::reset_scheduled_adhoc_tasks_for_component($component);
     core_upgrade_time::record_detail('\core\task\manager::reset_scheduled_tasks_for_component');
     \core_analytics\manager::update_default_models_for_component($component);
     core_upgrade_time::record_detail('\core_analytics\manager::update_default_models_for_component');

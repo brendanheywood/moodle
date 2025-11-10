@@ -37,6 +37,15 @@ if ($hassiteconfig) {
     $ADMIN->add(
         'taskconfig',
         new admin_externalpage(
+            'scheduledadhoctasks',
+            new lang_string('scheduledadhoctasks', 'tool_task'),
+            "$CFG->wwwroot/$CFG->admin/tool/task/scheduledadhoctasks.php"
+        )
+    );
+
+    $ADMIN->add(
+        'taskconfig',
+        new admin_externalpage(
             'adhoctasks',
             new lang_string('adhoctasks', 'tool_task'),
             "$CFG->wwwroot/$CFG->admin/tool/task/adhoctasks.php"

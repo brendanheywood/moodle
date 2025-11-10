@@ -3507,6 +3507,27 @@
         <INDEX NAME="lastruntime_nextruntime" UNIQUE="false" FIELDS="lastruntime, nextruntime"/>
       </INDEXES>
     </TABLE>
+    <TABLE NAME="task_scheduled_adhoc" COMMENT="List of scheduled adhoc tasks to be run by cron.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="component" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="The component this adhoc task belongs to."/>
+        <FIELD NAME="classname" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="The class extending adhoc_task to be called when running this task."/>
+        <FIELD NAME="nextruntime" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="nextstoptime" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="minute" TYPE="char" LENGTH="200" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="hour" TYPE="char" LENGTH="70" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="day" TYPE="char" LENGTH="90" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="month" TYPE="char" LENGTH="30" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="dayofweek" TYPE="char" LENGTH="25" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="disabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1 means run ASAP"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="classname_uniq" UNIQUE="true" FIELDS="classname"/>
+      </INDEXES>
+    </TABLE>
     <TABLE NAME="task_adhoc" COMMENT="List of adhoc tasks waiting to run.">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
