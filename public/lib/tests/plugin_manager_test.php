@@ -267,16 +267,38 @@ final class plugin_manager_test extends \advanced_testcase {
         $this->assertInstanceOf('\core\plugininfo\editor', $info);
     }
 
-    public function test_can_uninstall_plugin(): void {
+    public function test_can_plugin_be_uninstalled(): void {
         global $CFG;
 
         // Any standard plugin that is required by some other standard plugin is ok.
         $this->assertFileExists("$CFG->dirroot/report/competency", 'competency report is not present');
         $this->assertFileExists("$CFG->dirroot/$CFG->admin/tool/lp", 'tool lp is not present');
 
-        $this->assertFalse(core_plugin_manager::instance()->can_uninstall_plugin('tool_lp'));
-        $this->assertTrue(core_plugin_manager::instance()->can_uninstall_plugin('report_competency'));
+        $this->assertNotNull(core_plugin_manager::instance()->can_plugin_be_uninstalled('tool_lp'));
+        $this->assertNull(core_plugin_manager::instance()->can_plugin_be_uninstalled('report_competency'));
     }
+
+    public function test_can_plugin_be_uninstalled_returns_null(): void {
+        $pluginman = \core_plugin_manager::instance();
+
+        // Use a plugin that has no dependencies and is installed.
+        $reason = $pluginman->can_plugin_be_uninstalled('mod_book');
+
+        $this->assertNull($reason);
+    }
+
+    public function test_deprecated_can_uninstall_plugin(): void {
+        global $CFG;
+
+        set_debugging(DEBUG_DEVELOPER);
+
+        $result = core_plugin_manager::instance()->can_uninstall_plugin('mod_nonexistent123');
+
+        $this->assertDebuggingCalled();
+
+        $this->assertFalse($result);
+    }
+
 
     public function test_plugin_states(): void {
         global $CFG;
@@ -851,7 +873,7 @@ final class plugin_manager_test extends \advanced_testcase {
         $this->assertArrayHasKey('fullfeatured', $pluginman->get_installed_plugins('fake')); // Plugins with DB config.
         $this->assertInstanceOf(\fake_plugininfo::class, $pluginman->get_plugin_info('fake_fullfeatured'));
         $this->assertIsString($pluginman->get_plugintype_root('fake'));
-        $this->assertTrue($pluginman->can_uninstall_plugin('fake_fullfeatured'));
+        $this->assertNull($pluginman->can_plugin_be_uninstalled('fake_fullfeatured'));
         $uninstallurl = $pluginman->get_uninstall_url('fake_fullfeatured');
         $this->assertInstanceOf(\moodle_url::class, $uninstallurl);
         $this->assertEquals('fake_fullfeatured', $uninstallurl->param('uninstall'));
@@ -930,7 +952,7 @@ final class plugin_manager_test extends \advanced_testcase {
             $pluginman->get_plugin_info('fulldeprecatedsubtype_test'));
         $this->assertEquals('Full deprecated subtype test', $pluginman->plugin_name('fulldeprecatedsubtype_test'));
         $this->assertIsString($pluginman->get_plugintype_root('fulldeprecatedsubtype'));
-        $this->assertTrue($pluginman->can_uninstall_plugin('fulldeprecatedsubtype_test'));
+        $this->assertNull($pluginman->can_plugin_be_uninstalled('fulldeprecatedsubtype_test'));
         $uninstallurl = $pluginman->get_uninstall_url('fulldeprecatedsubtype_test');
         $this->assertInstanceOf(\moodle_url::class, $uninstallurl);
         $this->assertEquals('fulldeprecatedsubtype_test', $uninstallurl->param('uninstall'));
@@ -992,7 +1014,7 @@ final class plugin_manager_test extends \advanced_testcase {
         $this->assertArrayHasKey('fullfeatured', $pluginman->get_installed_plugins('fake')); // Plugins with DB config.
         $this->assertInstanceOf(\fake_plugininfo::class, $pluginman->get_plugin_info('fake_fullfeatured'));
         $this->assertIsString($pluginman->get_plugintype_root('fake'));
-        $this->assertTrue($pluginman->can_uninstall_plugin('fake_fullfeatured'));
+        $this->assertNull($pluginman->can_plugin_be_uninstalled('fake_fullfeatured'));
         $uninstallurl = $pluginman->get_uninstall_url('fake_fullfeatured');
         $this->assertInstanceOf(\moodle_url::class, $uninstallurl);
         $this->assertEquals('fake_fullfeatured', $uninstallurl->param('uninstall'));
@@ -1070,7 +1092,7 @@ final class plugin_manager_test extends \advanced_testcase {
         $this->assertInstanceOf(\fake_fullfeatured\plugininfo\fulldeletedsubtype::class,
             $pluginman->get_plugin_info('fulldeletedsubtype_demo'));
         $this->assertIsString($pluginman->get_plugintype_root('fulldeletedsubtype'));
-        $this->assertTrue($pluginman->can_uninstall_plugin('fulldeletedsubtype_demo'));
+        $this->assertNull($pluginman->can_plugin_be_uninstalled('fulldeletedsubtype_demo'));
         $uninstallurl = $pluginman->get_uninstall_url('fulldeletedsubtype_demo');
         $this->assertInstanceOf(\moodle_url::class, $uninstallurl);
         $this->assertEquals('fulldeletedsubtype_demo', $uninstallurl->param('uninstall'));

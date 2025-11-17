@@ -126,10 +126,12 @@ if ($options['purge-missing']) {
     foreach ($plugininfo as $type => $plugins) {
         foreach ($plugins as $name => $plugin) {
             if ($plugin->get_status() === core_plugin_manager::PLUGIN_STATUS_MISSING) {
-
                 $pluginstring = $plugin->component . "\t" . $plugin->displayname;
 
-                if ($pluginman->can_uninstall_plugin($plugin->component)) {
+                $reason = $pluginman->can_plugin_be_uninstalled($component);
+                if ($reason !== null) {
+                    cli_writeln("Cannot uninstall {$pluginstring}: {$reason}");
+                } else {
                     if ($options['run']) {
                         cli_writeln('Uninstalling: ' . $pluginstring);
 
@@ -140,8 +142,6 @@ if ($options['purge-missing']) {
                     } else {
                         cli_writeln('Will be uninstalled: ' . $pluginstring);
                     }
-                } else {
-                    cli_writeln('Can not be uninstalled: ' . $pluginstring);
                 }
             }
         }
@@ -160,7 +160,10 @@ if ($options['plugins']) {
         } else {
             $pluginstring = $component . "\t" . $plugin->displayname;
 
-            if ($pluginman->can_uninstall_plugin($component)) {
+            $reason = $pluginman->can_plugin_be_uninstalled($component);
+            if ($reason !== null) {
+                cli_writeln("Cannot uninstall {$pluginstring}: {$reason}");
+            } else {
                 if ($options['run']) {
                     cli_writeln('Uninstalling: ' . $pluginstring);
                     $progress = new progress_trace_buffer(new text_progress_trace(), true);
@@ -170,8 +173,6 @@ if ($options['plugins']) {
                 } else {
                     cli_writeln('Will be uninstalled: ' . $pluginstring);
                 }
-            } else {
-                cli_writeln('Can not be uninstalled: ' . $pluginstring);
             }
         }
     }

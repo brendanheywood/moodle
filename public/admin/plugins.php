@@ -77,10 +77,18 @@ if ($uninstall) {
     $PAGE->set_title($pluginname);
     $PAGE->navbar->add(get_string('uninstalling', 'core_plugin', array('name' => $pluginname)));
 
-    if (!$pluginman->can_uninstall_plugin($pluginfo->component)) {
-        throw new moodle_exception('err_cannot_uninstall_plugin', 'core_plugin', '',
-            array('plugin' => $pluginfo->component),
-            'core_plugin_manager::can_uninstall_plugin() returned false');
+    $reason = $pluginman->can_plugin_be_uninstalled($pluginfo->component);
+    if ($reason !== null) {
+        throw new moodle_exception(
+            'err_cannot_uninstall_plugin_reason',
+            'core_plugin',
+            '',
+            (object)[
+                'plugin' => $pluginfo->component,
+                'reason' => $reason,
+            ],
+            'core_plugin_manager::can_plugin_be_uninstalled returned a reason'
+        );
     }
 
     if (!$confirmed) {

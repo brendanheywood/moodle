@@ -1265,43 +1265,69 @@ class plugin_manager {
      *
      * @param string $component full frankenstyle name, e.g. mod_foobar
      * @return bool
+     * @deprecated since Moodle 5.2, use can_plugin_be_uninstalled() instead.
      */
     public function can_uninstall_plugin($component) {
+        debugging(
+            'can_uninstall_plugin() is deprecated. Use can_plugin_be_uninstalled() instead.',
+            DEBUG_DEVELOPER
+        );
+
+        return $this->can_plugin_be_uninstalled((string)$component) === null;
+    }
+
+    /**
+     * Returns null if plugin can be uninstalled, otherwise a reason string.
+     *
+     * @param string $component full frankenstyle name, e.g. mod_foobar
+     * @return string|null
+     * @since Moodle 5.2
+     */
+    public function can_plugin_be_uninstalled(string $component): ?string {
 
         $pluginfo = $this->get_plugin_info($component);
 
         if (is_null($pluginfo)) {
-            return false;
+            return get_string('uninstall_notinstalled', 'core_plugin');
         }
 
-        if (!$this->common_uninstall_check($pluginfo)) {
-            return false;
+        // Common uninstall check reason.
+        $reason = $this->common_uninstall_check_reason($pluginfo);
+        if ($reason !== null) {
+            return $reason;
         }
 
-        // Verify only if something else requires the subplugins, do not verify their common_uninstall_check()!
+        // Verify subplugin dependencies.
         $subplugins = $this->get_subplugins_of_plugin($pluginfo->component);
         foreach ($subplugins as $subpluginfo) {
-            // Check if there are some other plugins requiring this subplugin
-            // (but the parent and siblings).
             foreach ($this->other_plugins_that_require($subpluginfo->component) as $requiresme) {
                 $ismyparent = ($pluginfo->component === $requiresme);
-                $ismysibling = in_array($requiresme, array_keys($subplugins));
+                $ismysibling = array_key_exists($requiresme, $subplugins);
+
                 if (!$ismyparent && !$ismysibling) {
-                    return false;
+                    return get_string(
+                        'uninstall_subplugin_dependency',
+                        'core_plugin',
+                        $requiresme
+                    );
                 }
             }
         }
 
-        // Check if there are some other plugins requiring this plugin
-        // (but its subplugins).
+        // Check direct dependencies.
         foreach ($this->other_plugins_that_require($pluginfo->component) as $requiresme) {
-            $ismysubplugin = in_array($requiresme, array_keys($subplugins));
+            $ismysubplugin = array_key_exists($requiresme, $subplugins);
+
             if (!$ismysubplugin) {
-                return false;
+                return get_string(
+                    'uninstall_dependency',
+                    'core_plugin',
+                    $requiresme
+                );
             }
         }
 
-        return true;
+        return null; // OK to uninstall.
     }
 
     /**
@@ -2114,36 +2140,44 @@ class plugin_manager {
      *
      * @param \core\plugininfo\base $pluginfo
      * @return bool
+     * @deprecated since Moodle 5.2, use common_uninstall_check_reason() instead.
      */
     protected function common_uninstall_check(\core\plugininfo\base $pluginfo) {
+        debugging(
+            'common_uninstall_check() is deprecated. Use common_uninstall_check_reason() instead.',
+            DEBUG_DEVELOPER
+        );
+
+        return $this->common_uninstall_check_reason($pluginfo) === null;
+    }
+
+    /**
+     * Helper method that implements common uninstall prerequisites.
+     *
+     * @param \core\plugininfo\base $pluginfo
+     * @return string|null
+     * @since Moodle 5.2
+     */
+    protected function common_uninstall_check_reason(\core\plugininfo\base $pluginfo): ?string {
         global $CFG;
-        // Check if uninstall is allowed from the GUI.
-        if (!empty($CFG->uninstallclionly) && (!CLI_SCRIPT)) {
-            return false;
+
+        if (!empty($CFG->uninstallclionly) && !CLI_SCRIPT) {
+            return get_string('uninstall_reason_uninstallclionly', 'core_plugin');
         }
 
         if (!$pluginfo->is_uninstall_allowed()) {
-            // The plugin's plugininfo class declares it should not be uninstalled.
-            return false;
+            return get_string('uninstall_reason_notallowed_plugininfo', 'core_plugin');
         }
 
         if ($pluginfo->get_status() === static::PLUGIN_STATUS_NEW) {
-            // The plugin is not installed. It should be either installed or removed from the disk.
-            // Relying on this temporary state may be tricky.
-            return false;
+            return get_string('uninstall_reason_notinstalled', 'core_plugin');
         }
 
         if (method_exists($pluginfo, 'get_uninstall_url') && is_null($pluginfo->get_uninstall_url())) {
-            // Backwards compatibility.
-            debugging(
-                '\core\plugininfo\base subclasses should use is_uninstall_allowed() ' .
-                    'instead of returning null in get_uninstall_url()',
-                DEBUG_DEVELOPER
-            );
-            return false;
+            return get_string('uninstall_reason_legacy_uninstall_url_null', 'core_plugin');
         }
 
-        return true;
+        return null;
     }
 
     /**
