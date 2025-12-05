@@ -135,6 +135,7 @@ function yui_image_cached($imagepath, $imagename, $mimetype, $etag) {
 
     // no need to gzip already compressed images ;-)
 
+    $imagepath .= 'broken';
     if (readfile($imagepath) === false) {
         yui_image_not_found();
     }

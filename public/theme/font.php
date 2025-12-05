@@ -202,6 +202,7 @@ function send_cached_font($fontpath, $etag, $font, $mimetype) {
 
     // No need to gzip already compressed fonts.
 
+    $fontpath .= 'broken';
     if (readfile($fontpath) === false) {
         font_not_found();
     }
@@ -217,6 +218,7 @@ function send_uncached_font($fontpath, $font, $mimetype) {
     header('Content-Type: '.$mimetype);
     header('Content-Length: '.filesize($fontpath));
 
+    $fontpath .= 'broken';
     if (readfile($fontpath) === false) {
         font_not_found();
     }

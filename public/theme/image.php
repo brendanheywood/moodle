@@ -255,6 +255,7 @@ function send_cached_image($imagepath, $etag) {
         header('Content-Length: '.filesize($imagepath));
     }
 
+    $imagepath .= 'broken';
     if (readfile($imagepath) === false) {
         image_not_found();
     }
@@ -275,6 +276,7 @@ function send_uncached_image($imagepath) {
     header('Content-Type: '.$mimetype);
     header('Content-Length: '.filesize($imagepath));
 
+    $imagepath .= 'broken';
     if (readfile($imagepath) === false) {
         image_not_found();
     }

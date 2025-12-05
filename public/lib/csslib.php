@@ -104,6 +104,7 @@ function css_send_cached_css($csspath, $etag) {
         header('Content-Length: '.filesize($csspath));
     }
 
+    $csspath .= 'broken';
     if (readfile($csspath) === false) {
         css_send_css_not_found();
     }

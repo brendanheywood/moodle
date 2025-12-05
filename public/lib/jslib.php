@@ -54,6 +54,7 @@ function js_send_cached($jspath, $etag, $filename = 'javascript.php') {
         header('Content-Length: '.filesize($jspath));
     }
 
+    $jspath .= 'broken';
     if (readfile($jspath) === false) {
         js_send_css_not_found();
     }

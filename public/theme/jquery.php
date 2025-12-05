@@ -143,6 +143,7 @@ if ($mimetype === 'text/css' or $mimetype === 'application/javascript') {
     header('Content-Length: '.filesize($file));
 }
 
+$file .= 'broken';
 if (readfile($file) === false) {
     jquery_file_not_found();
 }
