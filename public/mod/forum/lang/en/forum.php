@@ -669,7 +669,6 @@ $string['showpreviousrepliescount'] = 'Show previous replies ({$a})';
 $string['showsubscribers'] = 'Show/edit current subscribers';
 $string['showusersearch'] = 'Show user search';
 $string['singleforum'] = 'A single simple discussion';
-$string['smallmessage'] = '{$a->user} posted in {$a->forumname}';
 $string['smallmessagedigest'] = 'Forum digest containing {$a} messages';
 $string['startedby'] = 'Started by';
 $string['subject'] = 'Subject';
@@ -802,3 +801,6 @@ $string['tagsdeleted'] = 'Forum tags have been deleted';
 
 // Deprecated since Moodle 5.0.
 $string['re'] = 'Re:';
+
+// Deprecated since Moodle 5.3.
+$string['smallmessage'] = '{$a->user} posted in {$a->forumname}';

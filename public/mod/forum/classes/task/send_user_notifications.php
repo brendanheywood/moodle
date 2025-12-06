@@ -370,11 +370,7 @@ class send_user_notifications extends \core\task\adhoc_task {
                 ]);
         }
 
-        $eventdata->smallmessage = get_string('smallmessage', 'forum', (object) [
-                'user' => fullname($author),
-                'forumname' => "$shortname: " . format_string($forum->name, true) . ": " . $discussion->name,
-                'message' => $post->message,
-            ]);
+        $eventdata->smallmessage = $post->message;
 
         $contexturl = new \moodle_url('/mod/forum/discuss.php', ['d' => $discussion->id], "p{$post->id}");
         $eventdata->contexturl = $contexturl->out();
