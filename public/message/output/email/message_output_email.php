@@ -101,8 +101,45 @@ class message_output_email extends message_output {
         }
 
         if ($emailuser) {
-            $result = email_to_user($recipient, $eventdata->userfrom, $eventdata->subject, $eventdata->fullmessage,
-                $eventdata->fullmessagehtml, $attachment, $attachname, true, $replyto, $replytoname);
+            $fullmessagehtml = $eventdata->fullmessagehtml;
+
+            if (
+                $eventdata->smallmessage != '' &&
+                $eventdata->smallmessage != $eventdata->subject &&
+                $eventdata->smallmessage != $eventdata->fullmessage
+            ) {
+                // The smallmessage in this context will only ever be shown as text
+                // even if it has html markup, so simplify it to plain text and then
+                // truncate it as we typically only have one line of preview text.
+                $preview = html_to_text($eventdata->smallmessage);
+                $preview = shorten_text($preview, $ideal = 300);
+
+                // This is a well known hack to get text previews of short text in
+                // a wide variety of email clients including iOS, Gmail.
+                // The spacer is hidden whitespace which pads out after the preview.
+                $spacer = str_repeat("&#847; &zwnj; &nbsp; ", 200);
+
+                $previewtext = <<<EOF
+<div style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;
+line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">$preview </div>
+<div style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;
+line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">$spacer</div>
+EOF;
+                $fullmessagehtml = $previewtext . $eventdata->fullmessagehtml;
+            }
+
+            $result = email_to_user(
+                $recipient,
+                $eventdata->userfrom,
+                $eventdata->subject,
+                $eventdata->fullmessage,
+                $fullmessagehtml,
+                $attachment,
+                $attachname,
+                true,
+                $replyto,
+                $replytoname
+            );
         } else {
             $messagetosend = new stdClass();
             $messagetosend->useridfrom = $eventdata->userfrom->id;
