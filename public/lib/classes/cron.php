@@ -118,6 +118,9 @@ class cron {
         // Calculate the finish time based on the start time and keepalive.
         $finishtime = $timenow + $keepalive;
 
+        $hostname = gethostname();
+        $hostlock = self::get_host_limit_lock($hostname);
+
         do {
             $startruntime = microtime();
 
@@ -159,6 +162,44 @@ class cron {
                 mtrace($message);
             }
         } while ($runagain);
+
+        if ($hostlock) {
+            $hostlock->release();
+        }
+    }
+
+    /**
+     * Checks limits for tasks to be run on a given cron host
+     *
+     * If the host limit reeached it will exit.
+     *
+     * @param string $hostname for host we are running on
+     * @return  a lock if one is needed or null if not needed
+     */
+    private static function get_host_limit_lock($hostname) {
+
+        $cronlockfactory = \core\lock\lock_config::get_lock_factory('cron');
+        $maxlimit = (int)get_config('core', 'task_host_concurrency_limit');
+
+        if ($maxlimit == 0) {
+            return;
+        }
+
+        for ($run = 0; $run < $maxlimit; $run++) {
+            // If we can't get a lock instantly it means runner N is already running
+            // so fail as fast as possible and try N+1 so we don't limit the speed at
+            // which we bring new runners into the pool.
+            if ($hostlock = $cronlockfactory->get_lock("host_task_runner_{$hostname}_{$run}", 0)) {
+                break;
+            }
+        }
+
+        if (!$hostlock) {
+            mtrace("Exiting: Max of $maxlimit tasks already running on host $hostname");
+            die;
+        }
+
+        return $hostlock;
     }
 
     /**
@@ -238,6 +279,12 @@ class cron {
         ?int $maxtasks = null,
         ?string $classname = null,
     ): void {
+
+        // Allow a restriction on the number of task either scheduled or adhoc
+        // running at once on the same host.
+        $hostname = gethostname();
+        $hostlock = self::get_host_limit_lock($hostname);
+
         // Allow a restriction on the number of adhoc task runners at once.
         $cronlockfactory = \core\lock\lock_config::get_lock_factory('cron');
         $maxruns = get_config('core', 'task_adhoc_concurrency_limit');
@@ -260,6 +307,9 @@ class cron {
 
             if (!$adhoclock) {
                 mtrace("Skipping processing of adhoc tasks. Concurrency limit reached.");
+                if ($hostlock) {
+                    $hostlock->release();
+                }
                 return;
             }
         }
@@ -290,6 +340,9 @@ class cron {
                 if ($adhoclock) {
                     // Release the adhoc task runner lock.
                     $adhoclock->release();
+                }
+                if ($hostlock) {
+                    $hostlock->release();
                 }
                 throw $e;
             }
@@ -331,6 +384,9 @@ class cron {
         if ($adhoclock) {
             // Release the adhoc task runner lock.
             $adhoclock->release();
+        }
+        if ($hostlock) {
+            $hostlock->release();
         }
     }
 
@@ -461,7 +517,15 @@ class cron {
      */
     public static function run_scheduled_task(string $taskclass) {
 
+        // Allow a restriction on the number of task either scheduled or adhoc
+        // running at once on the same host.
+        $hostname = gethostname();
+        $hostlock = self::get_host_limit_lock($hostname);
+
         if (!$task = \core\task\manager::get_scheduled_task($taskclass)) {
+            if ($hostlock) {
+                $hostlock->release();
+            }
             mtrace("Task '$execute' not found");
             exit(1);
         }
@@ -484,11 +548,17 @@ class cron {
         $cronlockfactory = \core\lock\lock_config::get_lock_factory('cron');
 
         if (!$cronlock = $cronlockfactory->get_lock('core_cron', 10)) {
+            if ($hostlock) {
+                $hostlock->release();
+            }
             mtrace('Cannot obtain cron lock');
             exit(129);
         }
         if (!$lock = $cronlockfactory->get_lock('\\' . get_class($task), 10)) {
             $cronlock->release();
+            if ($hostlock) {
+                $hostlock->release();
+            }
             mtrace('Cannot obtain task lock');
             exit(130);
         }

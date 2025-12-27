@@ -412,6 +412,16 @@ if ($hassiteconfig) {
         )
     );
 
+    $temp->add(
+        new admin_setting_configtext(
+            'task_host_concurrency_limit',
+            new lang_string('task_host_concurrency_limit', 'admin'),
+            new lang_string('task_host_concurrency_limit_desc', 'admin'),
+            0,
+            PARAM_INT
+        )
+    );
+
     $ADMIN->add('taskconfig', $temp);
 
     // Task log configuration.
