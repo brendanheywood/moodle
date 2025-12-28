@@ -115,7 +115,7 @@ if ($options['list']) {
         } else if ($nextrun > time()) {
             $nextrun = userdate($nextrun);
         } else {
-            $nextrun = get_string('asap', 'tool_task');
+            $nextrun = html_to_text(get_string('asap', 'tool_task'));
         }
 
         if ($lastrun) {
