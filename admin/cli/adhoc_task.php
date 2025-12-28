@@ -41,6 +41,7 @@ list($options, $unrecognized) = cli_get_params(
         'classname' => null,
         'taskslimit' => null,
         'failed' => false,
+        'list' => false,
     ], [
         'h' => 'help',
         'e' => 'execute',
@@ -69,6 +70,7 @@ Options:
  -i  --ignorelimits        Ignore task_adhoc_concurrency_limit and task_adhoc_max_runtime limits
  -f, --force               Execute task even if cron is disabled or per-host limits are exceeded
      --id                  Run (failed) task with id
+     --list                List all adhoc tasks
  -c, --classname           Run tasks with a certain classname (FQN)
  -l, --taskslimit=N        Run at most N tasks
      --failed              Run only tasks that failed, ie those with a fail delay
@@ -94,6 +96,43 @@ EOT;
 if ($options['help']) {
     echo $help;
     exit(0);
+}
+if ($options['list']) {
+    cli_heading("List of adhoc tasks ($CFG->wwwroot)");
+
+    $shorttime = get_string('strftimedatetimeshort');
+
+    $tasks = \core\task\manager::get_adhoc_tasks_summary();
+    $format = "%-50s %20s %20s  %-20s  \n";
+
+    echo sprintf(
+        $format,
+        get_string('adhoctasks', 'tool_task'),
+        get_string('adhoctasksdue', 'tool_task'),
+        get_string('adhoctasksfuture', 'tool_task'),
+        get_string('nextruntime', 'tool_task')
+    );
+    foreach ($tasks as $component) {
+        foreach ($component as $class => $task) {
+            $nextrun = $task['nextruntime'];
+            if ($nextrun > time()) {
+                $nextrun = userdate($nextrun, get_string('strftimedatemonthtimeshort', 'langconfig'));
+            } else {
+                $nextrun = html_to_text(get_string('asap', 'tool_task'));
+            }
+
+            $due = $task['due'];
+            $future = $task['count'] - $task['running'] - $task['due'];
+            echo sprintf(
+                $format,
+                $class,
+                $due == 0 ? '-' : $due,
+                $future == 0 ? '-' : $future,
+                $nextrun
+            );
+        }
+    }
+    die;
 }
 
 if (CLI_MAINTENANCE) {
