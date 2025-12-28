@@ -63,7 +63,7 @@ if ($options['help'] || !$hascommand) {
     --showsql             Show sql queries before they are executed
     --showdebugging       Show developer level debugging information
     -h, --help            Print out this help
-    -f, --force           Execute task even if cron is disabled
+    -f, --force           Execute task even if cron is disabled or host limits are exceeded
 
     Example:
     \$sudo -u www-data /usr/bin/php admin/cli/scheduled_task.php --execute=\\core\\task\\session_cleanup_task
@@ -72,6 +72,11 @@ if ($options['help'] || !$hascommand) {
 
     echo $help;
     die;
+}
+
+if ($options['force']) {
+    // Temporarily set this to 0 to force allow tasks to ignore the host limit.
+    $CFG->config_php_settings['task_host_concurrency_limit'] = 0;
 }
 
 if ($options['showdebugging'] || !empty($CFG->showcrondebugging)) {

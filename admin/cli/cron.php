@@ -69,7 +69,7 @@ Options:
 -h, --help               Print out this help
 -s, --stop               Notify all other running cron processes to stop after the current task
 -l, --list               Show the list of currently running tasks and how long they have been running
--f, --force              Execute task even if cron is disabled
+-f, --force              Execute task even if cron is disabled or per-host limits are exceeded
 -e, --enable             Enable cron
 -d, --disable            Disable cron
 -w, --disable-wait=600   Disable cron and wait until all tasks finished or fail after N seconds (optional param)
@@ -177,6 +177,11 @@ if ($wait = $options['disable-wait']) {
 if (!get_config('core', 'cron_enabled') && !$options['force']) {
     mtrace('Cron is disabled. Use --force to override.');
     exit(1);
+}
+
+if ($options['force']) {
+    // Temporarily set this to 0 to force allow tasks to ignore the host limit.
+    $CFG->config_php_settings['task_host_concurrency_limit'] = 0;
 }
 
 \core\local\cli\shutdown::script_supports_graceful_exit();

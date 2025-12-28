@@ -67,7 +67,7 @@ Options:
  -e, --execute             Run all queued adhoc tasks
  -k, --keep-alive=N        Keep this script alive for N seconds and poll for new adhoc tasks
  -i  --ignorelimits        Ignore task_adhoc_concurrency_limit and task_adhoc_max_runtime limits
- -f, --force               Run even if cron is disabled
+ -f, --force               Execute task even if cron is disabled or per-host limits are exceeded
      --id                  Run (failed) task with id
  -c, --classname           Run tasks with a certain classname (FQN)
  -l, --taskslimit=N        Run at most N tasks
@@ -125,6 +125,11 @@ if (!empty($CFG->showcronsql)) {
 }
 if (!empty($CFG->showcrondebugging)) {
     set_debugging(DEBUG_DEVELOPER, true);
+}
+
+if ($options['force']) {
+    // Temporarily set this to 0 to force allow tasks to ignore the host limit.
+    $CFG->config_php_settings['task_host_concurrency_limit'] = 0;
 }
 
 // Process params.
