@@ -39,6 +39,7 @@ list($options, $unrecognized) = cli_get_params(
         'showdebugging' => false,
         'showsql' => false,
     ], [
+        'e' => 'execute',
         'f' => 'force',
         'h' => 'help',
     ]
@@ -58,7 +59,7 @@ Scheduled cron tasks.
 Options:
      --disable='\\some\\task'  Disable scheduled task
      --enable='\\some\\task'   Enable scheduled task
-     --execute='\\some\\task'  Execute scheduled task manually
+ -e, --execute='\\some\\task'  Execute scheduled task manually
  -f, --force                 Execute task even if cron is disabled or host limits are exceeded
  -h, --help                  Print out this help
      --list                  List all scheduled tasks
@@ -67,6 +68,8 @@ Options:
 
 Example:
 php admin/cli/scheduled_task.php --execute='\\core\\task\\session_cleanup_task'
+
+php admin/cli/scheduled_task.php -e='\\core\\task\\session_cleanup_task'
 
 
 EOT;
