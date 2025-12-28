@@ -135,7 +135,7 @@ class cron {
             gc_collect_cycles();
 
             $completiontime = date('H:i:s');
-            $difftime = microtime_diff($startruntime, microtime());
+            $difftime = round(microtime_diff($startruntime, microtime()), 6);
             $memoryused = display_size(memory_get_usage());
 
             $message = "Cron completed at {$completiontime} in {$difftime} seconds. Memory used: {$memoryused}.";
@@ -470,7 +470,8 @@ class cron {
             }
             if (isset($predbqueries)) {
                 mtrace("... used " . ($DB->perf_get_queries() - $predbqueries) . " dbqueries");
-                mtrace("... used " . (microtime(1) - $pretime) . " seconds");
+                $difftime = round(microtime_diff($pretime, microtime()), 6);
+                mtrace("... used $difftime seconds");
             }
             mtrace('... used ' . display_size(memory_get_peak_usage()) . ' peak memory');
             mtrace('Scheduled task complete: ' . $fullname);
@@ -482,7 +483,8 @@ class cron {
             }
             if (isset($predbqueries)) {
                 mtrace("... used " . ($DB->perf_get_queries() - $predbqueries) . " dbqueries");
-                mtrace("... used " . (microtime(1) - $pretime) . " seconds");
+                $difftime = round(microtime_diff($pretime, microtime()), 6);
+                mtrace("... used $difftime seconds");
             }
             mtrace('... used ' . display_size(memory_get_peak_usage()) . ' peak memory');
             mtrace('Scheduled task failed: ' . $fullname . ',' . $e->getMessage());
@@ -643,7 +645,8 @@ class cron {
             }
             if (isset($predbqueries)) {
                 mtrace("... used " . ($DB->perf_get_queries() - $predbqueries) . " dbqueries");
-                mtrace("... used " . (microtime(1) - $pretime) . " seconds");
+                $difftime = round(microtime_diff($pretime, microtime()), 6);
+                mtrace("... used $difftime seconds");
             }
             mtrace('... used ' . display_size(memory_get_peak_usage()) . ' peak memory');
             mtrace("Adhoc task complete: " . get_class($task));
@@ -655,7 +658,8 @@ class cron {
             }
             if (isset($predbqueries)) {
                 mtrace("... used " . ($DB->perf_get_queries() - $predbqueries) . " dbqueries");
-                mtrace("... used " . (microtime(1) - $pretime) . " seconds");
+                $difftime = round(microtime_diff($pretime, microtime()), 6);
+                mtrace("... used $difftime seconds");
             }
             mtrace('... used ' . display_size(memory_get_peak_usage()) . ' peak memory');
             mtrace("Adhoc task failed: " . get_class($task) . "," . $e->getMessage());
