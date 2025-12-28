@@ -89,11 +89,17 @@ if ($options['showsql'] || !empty($CFG->showcronsql)) {
 if ($options['list']) {
     cli_heading("List of scheduled tasks ($CFG->wwwroot)");
 
-    $shorttime = get_string('strftimedatetimeshort');
-
     $tasks = \core\task\manager::get_all_scheduled_tasks();
-    echo str_pad(get_string('scheduledtasks', 'tool_task'), 50, ' ') . ' ' . str_pad(get_string('runpattern', 'tool_task'), 17, ' ')
-        . ' ' . str_pad(get_string('lastruntime', 'tool_task'), 40, ' ') . get_string('nextruntime', 'tool_task') . "\n";
+    $format = "%-67s %15s   %-20s %-20s\n";
+    $dateformat = get_string('strftimedatemonthtimeshort', 'langconfig');
+
+    echo sprintf(
+        $format,
+        get_string('scheduledtasks', 'tool_task'),
+        get_string('runpattern', 'tool_task'),
+        get_string('lastruntime', 'tool_task'),
+        get_string('nextruntime', 'tool_task')
+    );
     foreach ($tasks as $task) {
         $class = '\\' . get_class($task);
         $schedule = $task->get_minute() . ' '
@@ -113,19 +119,18 @@ if ($options['list']) {
         } else if ($task->get_disabled()) {
             $nextrun = get_string('taskdisabled', 'tool_task');
         } else if ($nextrun > time()) {
-            $nextrun = userdate($nextrun);
+            $nextrun = userdate($nextrun, $dateformat);
         } else {
             $nextrun = html_to_text(get_string('asap', 'tool_task'));
         }
 
         if ($lastrun) {
-            $lastrun = userdate($lastrun);
+            $lastrun = userdate($lastrun, $dateformat);
         } else {
             $lastrun = get_string('never');
         }
 
-        echo str_pad($class, 50, ' ') . ' ' . str_pad($schedule, 17, ' ') .
-            ' ' . str_pad($lastrun, 40, ' ') . ' ' . $nextrun . "\n";
+        echo sprintf($format, $class, $schedule, $lastrun, $nextrun);
     }
     exit(0);
 }
