@@ -35,24 +35,24 @@ require_once($CFG->libdir . '/clilib.php');
 // Now get cli option.
 [$options, $unrecognized] = cli_get_params(
     [
-        'help' => false,
-        'stop' => false,
-        'list' => false,
-        'force' => false,
-        'enable' => false,
         'disable' => false,
         'disable-wait' => false,
+        'enable' => false,
+        'force' => false,
+        'help' => false,
         'keep-alive' => null,
+        'list' => false,
+        'stop' => false,
     ],
     [
-        'h' => 'help',
-        's' => 'stop',
-        'l' => 'list',
-        'f' => 'force',
-        'e' => 'enable',
         'd' => 'disable',
-        'w' => 'disable-wait',
+        'e' => 'enable',
+        'f' => 'force',
+        'h' => 'help',
         'k' => 'keep-alive',
+        'l' => 'list',
+        's' => 'stop',
+        'w' => 'disable-wait',
     ]
 );
 
@@ -62,24 +62,30 @@ if ($unrecognized) {
 }
 
 if ($options['help']) {
-    $help =
-    "Execute periodic cron actions.
+    $help = <<<EOT
+Execute periodic cron actions.
 
 Options:
--h, --help               Print out this help
--s, --stop               Notify all other running cron processes to stop after the current task
--l, --list               Show the list of currently running tasks and how long they have been running
--f, --force              Execute task even if cron is disabled or per-host limits are exceeded
--e, --enable             Enable cron
--d, --disable            Disable cron
--w, --disable-wait=600   Disable cron and wait until all tasks finished or fail after N seconds (optional param)
--k, --keep-alive=N       Keep this script alive for N seconds and poll for new tasks
-                         The default value can be set by administrators in:
-                         Site administration > Server > Tasks > Task processing > Keep alive time
+ -d, --disable            Disable cron
+ -e, --enable             Enable cron
+ -f, --force              Execute task even if cron is disabled or per-host limits are exceeded
+ -h, --help               Print out this help
+ -k, --keep-alive=N       Keep this script alive for N seconds and poll for new tasks
+                          The default value can be set by administrators in:
+                          Site administration > Server > Tasks > Task processing > Keep alive time
+ -l, --list               Show the list of currently running tasks and how long they have been running
+ -s, --stop               Notify all other running cron processes to stop after the current task
+ -w, --disable-wait=600   Disable cron and wait until all tasks finished or fail after N seconds (optional param)
 
 Example:
-\$sudo -u www-data /usr/bin/php admin/cli/cron.php
-";
+php admin/cli/cron.php
+
+php admin/cli/cron.php --enable
+
+php admin/cli/cron.php --disable
+
+
+EOT;
 
     echo $help;
     die;

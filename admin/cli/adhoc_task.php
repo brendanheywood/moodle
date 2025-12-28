@@ -30,25 +30,25 @@ require_once("{$CFG->libdir}/clilib.php");
 
 list($options, $unrecognized) = cli_get_params(
     [
-        'help' => false,
-        'showsql' => false,
-        'showdebugging' => false,
-        'execute' => false,
-        'keep-alive' => 0,
-        'ignorelimits' => false,
-        'force' => false,
-        'id' => null,
         'classname' => null,
-        'taskslimit' => null,
+        'execute' => false,
         'failed' => false,
+        'force' => false,
+        'help' => false,
+        'id' => null,
+        'ignorelimits' => false,
+        'keep-alive' => 0,
         'list' => false,
+        'showdebugging' => false,
+        'showsql' => false,
+        'taskslimit' => null,
     ], [
-        'h' => 'help',
-        'e' => 'execute',
-        'k' => 'keep-alive',
-        'i' => 'ignorelimits',
-        'f' => 'force',
         'c' => 'classname',
+        'e' => 'execute',
+        'f' => 'force',
+        'h' => 'help',
+        'i' => 'ignorelimits',
+        'k' => 'keep-alive',
         'l' => 'taskslimit',
     ]
 );
@@ -62,34 +62,34 @@ $help = <<<EOT
 Ad hoc cron tasks.
 
 Options:
- -h, --help                Print out this help
-     --showsql             Show sql queries before they are executed
-     --showdebugging       Show developer level debugging information
- -e, --execute             Run all queued adhoc tasks
- -k, --keep-alive=N        Keep this script alive for N seconds and poll for new adhoc tasks
- -i  --ignorelimits        Ignore task_adhoc_concurrency_limit and task_adhoc_max_runtime limits
- -f, --force               Execute task even if cron is disabled or per-host limits are exceeded
-     --id                  Run (failed) task with id
-     --list                List all adhoc tasks
  -c, --classname           Run tasks with a certain classname (FQN)
- -l, --taskslimit=N        Run at most N tasks
+ -e, --execute             Run all queued adhoc tasks
      --failed              Run only tasks that failed, ie those with a fail delay
+ -f, --force               Execute task even if cron is disabled or per-host limits are exceeded
+ -h, --help                Print out this help
+     --id                  Run (failed) task with id
+ -i  --ignorelimits        Ignore task_adhoc_concurrency_limit and task_adhoc_max_runtime limits
+ -k, --keep-alive=N        Keep this script alive for N seconds and poll for new adhoc tasks
+     --list                List all adhoc tasks
+ -l, --taskslimit=N        Run at most N tasks
+     --showdebugging       Show developer level debugging information
+     --showsql             Show sql queries before they are executed
 
-Run all queued tasks:
-\$sudo -u www-data /usr/bin/php admin/cli/adhoc_task.php --execute
+# Run all queued tasks:
+php admin/cli/adhoc_task.php --execute
 
-Run all queued tasks of specific class:
-\$sudo -u www-data /usr/bin/php admin/cli/adhoc_task.php --classname=\\\\core_course\\\\task\\\\course_delete_modules
+# Run all queued tasks of specific class:
+php admin/cli/adhoc_task.php --classname='\\core_course\\task\\course_delete_modules'
 
-Double backslash for the shell escape reasons.
-Run a specific task:
-\$sudo -u www-data /usr/bin/php admin/cli/adhoc_task.php --id=123456
+# Run a specific task:
+php admin/cli/adhoc_task.php --id=123456
 
-Run a specific task with debugging:
-\$sudo -u www-data /usr/bin/php admin/cli/adhoc_task.php --id=123456 --showsql --showdebugging
+# Run a specific task with debugging:
+php admin/cli/adhoc_task.php --id=123456 --showsql --showdebugging
 
-To profile a long running task:
-\$sudo -u www-data /usr/bin/php admin/cli/adhoc_task.php --taskslimit=1 --classname='\\some\\class\\name' --ignorelimits
+# To run a task ignoring concurrency limits:
+php admin/cli/adhoc_task.php --taskslimit=1 --classname='\\some\\class\\name' --ignorelimits
+
 
 EOT;
 
