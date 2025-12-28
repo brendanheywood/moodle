@@ -157,39 +157,5 @@ if ($disable = $options['disable']) {
         exit(1);
     }
 } else if ($execute = $options['execute']) {
-    if (!$task = \core\task\manager::get_scheduled_task($execute)) {
-        mtrace("Task '$execute' not found");
-        exit(1);
-    }
-
-    if (!get_config('core', 'cron_enabled') && !$options['force']) {
-        mtrace('Cron is disabled. Use --force to override.');
-        exit(1);
-    }
-
-    \core\task\manager::scheduled_task_starting($task);
-
-    // Increase memory limit.
-    raise_memory_limit(MEMORY_EXTRA);
-
-    // Emulate normal session - we use admin account by default.
-    \core\cron::setup_user();
-
-    // Execute the task.
-    \core\local\cli\shutdown::script_supports_graceful_exit();
-    $cronlockfactory = \core\lock\lock_config::get_lock_factory('cron');
-    if (!$cronlock = $cronlockfactory->get_lock('core_cron', 10)) {
-        mtrace('Cannot obtain cron lock');
-        exit(129);
-    }
-    if (!$lock = $cronlockfactory->get_lock('\\' . get_class($task), 10)) {
-        $cronlock->release();
-        mtrace('Cannot obtain task lock');
-        exit(130);
-    }
-
-    $task->set_lock($lock);
-    $cronlock->release();
-
-    \core\cron::run_inner_scheduled_task($task);
+    \core\cron::run_scheduled_task($options['execute']);
 }

@@ -455,6 +455,55 @@ class cron {
     }
 
     /**
+     * Run a single scheduled task
+     *
+     * @param string $taskclass
+     */
+    public static function run_scheduled_task(string $taskclass) {
+
+        if (!$task = \core\task\manager::get_scheduled_task($taskclass)) {
+            mtrace("Task '$execute' not found");
+            exit(1);
+        }
+
+        if (!get_config('core', 'cron_enabled') && !$options['force']) {
+            mtrace('Cron is disabled. Use --force to override.');
+            exit(1);
+        }
+
+        \core\task\manager::scheduled_task_starting($task);
+
+        // Increase memory limit.
+        raise_memory_limit(MEMORY_EXTRA);
+
+        // Emulate normal session - we use admin account by default.
+        self::setup_user();
+
+        // Execute the task.
+        \core\local\cli\shutdown::script_supports_graceful_exit();
+        $cronlockfactory = \core\lock\lock_config::get_lock_factory('cron');
+
+        if (!$cronlock = $cronlockfactory->get_lock('core_cron', 10)) {
+            mtrace('Cannot obtain cron lock');
+            exit(129);
+        }
+        if (!$lock = $cronlockfactory->get_lock('\\' . get_class($task), 10)) {
+            $cronlock->release();
+            mtrace('Cannot obtain task lock');
+            exit(130);
+        }
+
+        $task->set_lock($lock);
+        $cronlock->release();
+
+        self::run_inner_scheduled_task($task);
+
+        if ($hostlock) {
+            $hostlock->release();
+        }
+    }
+
+    /**
      * Shared code that handles running of a single adhoc task within the cron.
      *
      * @param \core\task\adhoc_task $task
