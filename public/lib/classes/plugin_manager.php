@@ -2166,6 +2166,14 @@ class plugin_manager {
         }
 
         if (!$pluginfo->is_uninstall_allowed()) {
+            // The plugin's plugininfo class declares it should not be uninstalled.
+            $warning = $pluginfo->get_uninstall_extra_warning();
+
+            if ($$warning) {
+                return $warning;
+            }
+            debugging($pluginfo->type . '_' . $pluginfo->name . " didn't implement warning");
+
             return get_string('uninstall_reason_notallowed_plugininfo', 'core_plugin');
         }
 
