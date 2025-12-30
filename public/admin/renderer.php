@@ -1918,6 +1918,8 @@ class core_admin_renderer extends plugin_renderer_base {
                 }
                 $uninstall = new html_table_cell($uninstall);
 
+                $uninstallwarning = $plugin->get_uninstall_extra_warning();
+
                 if ($plugin->is_standard()) {
                     $row->attributes['class'] .= ' standard';
                     $source = '';
@@ -1962,7 +1964,7 @@ class core_admin_renderer extends plugin_renderer_base {
                     }
                 }
 
-                $notes = new html_table_cell($source.' '.$msg.' '.$deprecatedmsg.$requiredby.$updateinfo);
+                $notes = new html_table_cell($source.' '.$msg.' '.$deprecatedmsg.$requiredby.$updateinfo.$uninstallwarning);
 
                 $row->cells = array(
                     $pluginname, $version, $availability, $settings, $uninstall, $notes
