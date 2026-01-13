@@ -30,8 +30,6 @@ $wantsurl = optional_param('wantsurl', '', PARAM_LOCALURL);
 $PAGE->set_context(context_system::instance());
 $PAGE->set_url(new moodle_url('/auth/oauth2/login.php', ['id' => $issuerid]));
 
-require_sesskey();
-
 if (!\auth_oauth2\api::is_enabled()) {
     throw new \moodle_exception('notenabled', 'auth_oauth2');
 }

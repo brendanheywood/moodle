@@ -179,7 +179,7 @@ class auth extends \auth_plugin_base {
         $result = [];
         foreach ($providers as $idp) {
             if ($idp->is_available_for_login()) {
-                $params = ['id' => $idp->get('id'), 'sesskey' => sesskey()];
+                $params = ['id' => $idp->get('id')];
                 if (!empty($wantsurl)) {
                     $params['wantsurl'] = $wantsurl;
                 }
