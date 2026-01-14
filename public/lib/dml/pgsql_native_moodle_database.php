@@ -1442,6 +1442,12 @@ class pgsql_native_moodle_database extends moodle_database {
         $constraint = implode(',', $uniqueindexcolumns);
         $updates = implode(', ', $updates);
 
+        if (!$updates) {
+            // If no other fields are updated, then do a fake set so we can
+            // still get back the id record.
+            $updates = $uniqueindexcolumns[0] . ' = EXCLUDED.' . $uniqueindexcolumns[0];
+        }
+
         $sql = "INSERT INTO {$this->prefix}$table ($fields) VALUES ($values)
                 ON CONFLICT ($constraint) DO UPDATE SET $updates RETURNING id";
 

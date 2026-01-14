@@ -1955,22 +1955,12 @@ abstract class moodle_database {
             }
         }
 
-        $foundnonunique = false;
         foreach ((array)$dataobject as $field => $value) {
             if (!isset($columns[$field])) {
                 throw new \core\exception\coding_exception(
                     'moodle_database::upsert_record() dataobject contains unknown column'
                 );
             }
-            if (!$foundnonunique && !in_array($field, $uniqueindexcolumns)) {
-                $foundnonunique = true;
-            }
-        }
-
-        if (!$foundnonunique) {
-            throw new \core\exception\coding_exception(
-                'moodle_database::upsert_record() dataobject must contain at least one non-unique column'
-            );
         }
     }
 

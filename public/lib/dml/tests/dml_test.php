@@ -3141,14 +3141,11 @@ EOD;
             'course' => '3',
             'name' => 'abc',
         ];
-        try {
-            $DB->upsert_record($tablename2, $record, ['course', 'name']);
-            $this->fail('Exception expected');
-        } catch (\core\exception\moodle_exception $ex) {
-            $this->assertInstanceOf(\core\exception\coding_exception::class, $ex);
-            $this->assertSame('Coding error detected, it must be fixed by a programmer:'
-                . ' moodle_database::upsert_record() dataobject must contain at least one non-unique column', $ex->getMessage());
-        }
+        $id = $DB->upsert_record($tablename2, $record, ['course', 'name']);
+        $this->assertNotNull($id);
+
+        $id2 = $DB->upsert_record($tablename2, $record, ['course', 'name']);
+        $this->assertEquals($id, $id2);
 
         // Test compatibility with transaction commit.
 
