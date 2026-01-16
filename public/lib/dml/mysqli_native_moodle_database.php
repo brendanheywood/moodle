@@ -1720,6 +1720,69 @@ class mysqli_native_moodle_database extends moodle_database {
     }
 
     /**
+     * A fast way to insert or update record that has EXACTLY ONE unique index.
+     *
+     * If there is already an existing record with unique constraint then
+     * record is updated, if not new record is inserted.
+     *
+     * This method solves problems with highly concurrent inserts into tables with unique constraints.
+     *
+     * @param string $table
+     * @param stdClass|array|null $upsertdata
+     * @param stdClass|array $insertonlydata additional data with values to be used only for inserts
+     * @return int row id
+     */
+    public function upsert_record(string $table, $upsertdata, $insertonlydata = []): int {
+        $insertonlydata = (array)$insertonlydata;
+        if ($upsertdata === null) {
+            $upsertdata = $this->prepare_null_dataobject_upsert($table, $insertonlydata);
+        } else {
+            $upsertdata = (object)(array)$upsertdata;
+        }
+        $uniqueindexcolumns = $this->validate_upsert_record_arguments($table, $upsertdata, $insertonlydata);
+        $insertonlydata = array_diff_key($insertonlydata, array_flip($uniqueindexcolumns));
+
+        $columns = $this->get_columns($table);
+        $values = [];
+        $fields = [];
+        $params = [];
+        $updates = ["id=LAST_INSERT_ID(id)"];
+        foreach ((array)$upsertdata as $field => $value) {
+            $column = $columns[$field];
+            $value = $this->normalise_value($column, $value);
+            $params[] = $value;
+            $values[] = '?';
+            $fields[] = $field;
+            if (!in_array($field, $uniqueindexcolumns)) {
+                $updates[] = "$field = VALUES($field)";
+            }
+        }
+        foreach ($insertonlydata as $field => $value) {
+            $column = $columns[$field];
+            $value = $this->normalise_value($column, $value);
+            $params[] = $value;
+            $values[] = '?';
+            $fields[] = $field;
+        }
+        $values = implode(',', $values);
+        $fields = implode(',', $fields);
+        $updates = implode(', ', $updates);
+
+        $sql = "INSERT INTO {$this->prefix}$table ($fields) VALUES ($values)
+                            ON DUPLICATE KEY UPDATE $updates";
+
+        [$sql, $params, $type] = $this->fix_sql_params($sql, $params);
+        $rawsql = $this->emulate_bound_params($sql, $params);
+
+        $this->query_start($sql, $params, SQL_QUERY_UPDATE); // For now use update type.
+        $result = $this->mysqli->query($rawsql);
+        $id = $this->mysqli->insert_id; // Must be called before query_end() which may insert log into db.
+        $this->query_end($result);
+
+        return $id;
+    }
+
+    /**
      * Set a single field in every table record which match a particular WHERE clause.
      *
      * @param string $table The database table to be checked against.

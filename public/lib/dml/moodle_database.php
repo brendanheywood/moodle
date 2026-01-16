@@ -1884,6 +1884,43 @@ abstract class moodle_database {
     abstract public function update_record_raw($table, $params, $bulk=false);
 
     /**
+     * Returns the field names that make up the single unique index on a table.
+     *
+     * This method asserts that the specified table defines exactly one unique
+     * index and returns its ordered list of fields.
+     *
+     * The result is cached in the DML metacache for performance.
+     *
+     * @param string $tablename The database table name, without the prefix.
+     * @return string[] Ordered list of field names that comprise the unique index.
+     *
+     * @throws coding_exception If the table has zero or more than one unique index.
+     */
+    protected function get_unique_index_fields(string $tablename): array {
+
+        $cachekey = "uniqueindexfields:{$tablename}";
+        if ($fields = $this->get_metacache()->get($cachekey)) {
+            return $fields;
+        }
+
+        $indexes = $this->get_indexes($tablename);
+        $uniqueindexes = array_filter(
+            $indexes,
+            static fn(array $tableindex): bool => !empty($tableindex['unique'])
+        );
+
+        if (count($uniqueindexes) !== 1) {
+            throw new coding_exception(
+                "moodle_database::upsert_record() Table '{$tablename}' must define exactly one unique index"
+            );
+        }
+
+        $fields = reset($uniqueindexes)['columns'];
+        $this->get_metacache()->set($cachekey, $fields);
+        return $fields;
+    }
+
+    /**
      * Update a record in a table
      *
      * $dataobject is an object containing needed data
@@ -1898,6 +1935,163 @@ abstract class moodle_database {
      * @throws dml_exception A DML specific exception is thrown for any errors.
      */
     abstract public function update_record($table, $dataobject, $bulk=false);
+
+    /**
+     * When upsert_record is called with a null dataobject, all fields (including the unique
+     * index columns) live in $insertonlydata. This helper validates that, extracts a
+     * synthesized dataobject containing only the unique columns, and strips those columns
+     * from $insertonlydata so the normal upsert logic can proceed unchanged.
+     *
+     * The result is "insert if not exists" semantics: on conflict nothing is updated.
+     *
+     * @param string $table
+     * @param array $insertonlydata passed by reference; unique cols are removed in-place
+     * @return stdClass synthesized upsertdata containing only the unique index columns
+     */
+    protected function prepare_null_dataobject_upsert(string $table, array &$insertonlydata): stdClass {
+        $uniqueindexcolumns = $this->get_unique_index_fields($table);
+        $missing = array_diff($uniqueindexcolumns, array_keys($insertonlydata));
+        if ($missing) {
+            throw new \core\exception\coding_exception(
+                'moodle_database::upsert_record() insertonlydata must contain all unique columns '
+                . 'when upsertdata is null, missing: ' . implode(',', $missing)
+            );
+        }
+        $upsertdata = (object)array_intersect_key($insertonlydata, array_flip($uniqueindexcolumns));
+        $insertonlydata = array_diff_key($insertonlydata, array_flip($uniqueindexcolumns));
+        return $upsertdata;
+    }
+
+    /**
+     * Validate all upsert parameters.
+     *
+     * @param string $table
+     * @param stdClass $upsertdata
+     * @param array $insertonlydata
+     * @return array of uniqueindexcolumns
+     */
+    protected function validate_upsert_record_arguments(
+        string $table,
+        stdClass $upsertdata,
+        array $insertonlydata
+    ): array {
+        $uniqueindexcolumns = $this->get_unique_index_fields($table);
+
+        if (!$uniqueindexcolumns) {
+            throw new \core\exception\coding_exception(
+                'moodle_database::upsert_record() requires list of unique constraint columns'
+            );
+        }
+
+        if (property_exists($upsertdata, 'id')) {
+            throw new \core\exception\coding_exception(
+                'moodle_database::upsert_record() upsertdata must not have id property'
+            );
+        }
+
+        $missing = [];
+        foreach ($uniqueindexcolumns as $column) {
+            if (!isset($upsertdata->$column)) {
+                $missing[] = $column;
+            }
+        }
+        if (!empty($missing)) {
+            throw new \core\exception\coding_exception(
+                'moodle_database::upsert_record() upsertdata must have all unique columns set, missing ' . join(',', $missing)
+            );
+        }
+
+        $columns = $this->get_columns($table);
+
+        foreach ($insertonlydata as $k => $v) {
+            if (!isset($columns[$k])) {
+                throw new \core\exception\coding_exception(
+                    "moodle_database::upsert_record() insertonlydata contains unknown column '$k'=$v"
+                );
+            }
+            if (in_array($k, $uniqueindexcolumns)) {
+                // We allow the insert fields to also contain the index fields, as long as
+                // the values exactly match those of the upsert data.
+                $value = $upsertdata->{$k};
+                if ($v != $value) {
+                    throw new \core\exception\coding_exception(
+                        "moodle_database::upsert_record() insertonlydata contains '$k'=>$v"
+                        . " but is different to the upsert data '$k'->$value"
+                    );
+                }
+            } else if (property_exists($upsertdata, $k)) {
+                throw new \core\exception\coding_exception(
+                    "moodle_database::upsert_record() insertonlydata must not share column '$k' with upsertdata"
+                );
+            }
+        }
+
+        foreach ((array)$upsertdata as $field => $value) {
+            if (!isset($columns[$field])) {
+                throw new \core\exception\coding_exception(
+                    "moodle_database::upsert_record() upsertdata contains unknown column '$field'"
+                );
+            }
+        }
+        return $uniqueindexcolumns;
+    }
+
+    /**
+     * A fast way to insert or update record that has EXACTLY ONE unique index.
+     *
+     * If there is already an existing record with unique constraint then
+     * record is updated, if not new record is inserted.
+     *
+     * This method solves problems with highly concurrent inserts into tables with unique constraints.
+     *
+     * @param string $table
+     * @param stdClass|array|null $upsertdata
+     * @param stdClass|array $insertonlydata additional data with values to be used only for inserts
+     * @return int row id
+     */
+    public function upsert_record(string $table, $upsertdata, $insertonlydata = []): int {
+
+        // NOTE: this is a fallback implementation for databases that do not have native UPSERT.
+        $insertonlydata = (array)$insertonlydata;
+        if ($upsertdata === null) {
+            $upsertdata = $this->prepare_null_dataobject_upsert($table, $insertonlydata);
+        } else {
+            $upsertdata = (object)(array)$upsertdata;
+        }
+
+        $uniqueindexcolumns = $this->validate_upsert_record_arguments($table, $upsertdata, $insertonlydata);
+
+        $conditions = [];
+        foreach ($uniqueindexcolumns as $column) {
+            $conditions[$column] = $upsertdata->$column;
+        }
+
+        $record = $this->get_record($table, $conditions);
+        if ($record) {
+            $upsertdata->id = $record->id;
+            $this->update_record($table, $upsertdata);
+            $id = (int)$record->id;
+        } else {
+            try {
+                if ($insertonlydata) {
+                    $insertdata = (object)((array)$upsertdata + $insertonlydata);
+                } else {
+                    $insertdata = $upsertdata;
+                }
+                $id = $this->insert_record($table, $insertdata);
+            } catch (dml_write_exception $e) {
+                // Could be a concurrent insert trouble.
+                $record = $this->get_record($table, $conditions);
+                if (!$record) {
+                    throw $e;
+                }
+                $upsertdata->id = $record->id;
+                $this->update_record($table, $upsertdata);
+                $id = (int)$record->id;
+            }
+        }
+        return $id;
+    }
 
     /**
      * Set a single field in every table record where all the given conditions met.
