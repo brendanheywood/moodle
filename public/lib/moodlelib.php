@@ -1536,31 +1536,16 @@ function set_user_preference($name, $value, $user = null) {
         return true;
     }
 
-    $retry = 0;
-    $saved = false;
-
-    while (!$saved && $retry++ < 2) {
-        if ($preference = $DB->get_record('user_preferences', ['userid' => $user->id, 'name' => $name])) {
-            if ($preference->value === $value && isset($user->preference[$name]) && $user->preference[$name] === $value) {
-                // Preference already set to this value.
-                return true;
-            }
-            $DB->set_field('user_preferences', 'value', $value, ['id' => $preference->id]);
-            $saved = true;
-        } else {
-            $preference = new stdClass();
-            $preference->userid = $user->id;
-            $preference->name   = $name;
-            $preference->value  = $value;
-            try {
-                $DB->insert_record('user_preferences', $preference);
-                $saved = true;
-            } catch (dml_write_exception $e) {
-                // We have an insert race, so just ignore and try again.
-                $saved = false;
-            }
-        }
+    // Preference already set to this value — skip DB write and cache invalidation.
+    if (isset($user->preference[$name]) && $user->preference[$name] === $value) {
+        return true;
     }
+
+    $DB->upsert_record('user_preferences', [
+        'userid' => $user->id,
+        'name' => $name,
+        'value' => $value,
+    ]);
 
     // Update value in cache.
     $user->preference[$name] = $value;
