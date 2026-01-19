@@ -63,11 +63,12 @@ function report_usersessions_format_duration($duration) {
  * @return string
  */
 function report_usersessions_format_ip($ip) {
+    global $USER;
     if (strpos($ip, ':') !== false) {
         // For now ipv6 is not supported yet.
         return $ip;
     }
-    $url = new moodle_url('/iplookup/index.php', array('ip' => $ip));
+    $url = new moodle_url('/iplookup/index.php', ['ip' => $ip, 'user' => $USER->id]);
     return html_writer::link($url, $ip);
 }
 
