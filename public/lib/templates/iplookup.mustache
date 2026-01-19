@@ -1,0 +1,78 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template core/iplookup
+
+    Template location results from a geoip lookp
+
+    Classes required for JS:
+    * none
+
+    Data attributes required for JS:
+    * none
+
+    Context variables required for this template:
+    * title A cleaned string (use clean_text()) to display.
+    * body HTML content for the boday
+    * footer HTML content for the footer
+
+    Example context (json):
+    {
+        "ip": "1.127.48.35",
+        "info": {
+            "city": "Perth",
+            "region": "Perth",
+            "country": "Australia",
+            "longitude": 150.8974,
+            "latitude": -33.9328,
+            "error": "Some error",
+            "note": "A note"
+        },
+        "map": "html for map",
+        "showmap": true
+    }
+}}
+<table class="table table-hover table-sm">
+    <tr>
+        <td>{{#str}} ip_address, core {{/str}}</td>
+        <td>{{ip}}</td>
+    </tr>
+    <tr>
+        <td>{{#str}} city, core {{/str}}</td>
+        <td>{{info.city}}</td>
+    </tr>
+    <tr>
+        <td>{{#str}} region, core {{/str}}</td>
+        <td>{{info.region}}</td>
+    </tr>
+    <tr>
+        <td>{{#str}} country, core {{/str}}</td>
+        <td>{{info.country}}</td>
+    </tr>
+    <tr>
+        <td>{{#str}} geolocation, core {{/str}}</td>
+        <td>{{info.latitude}}, {{info.longitude}}</td>
+    </tr>
+</table>
+{{#showmap}}
+    {{{map}}}
+    {{#info.note}}
+        <small class="text-muted">
+            {{{info.note}}}
+        </small>
+    {{/info.note}}
+{{/showmap}}
