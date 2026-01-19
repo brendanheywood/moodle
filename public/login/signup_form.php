@@ -36,6 +36,13 @@ class login_signup_form extends moodleform implements renderable, templatable {
 
         $mform = $this->_form;
 
+        $ip = getremoteaddr();
+        $info = [];
+        require_once($CFG->dirroot . '/iplookup/lib.php');
+        if (ip_is_public($ip)) {
+            $info = iplookup_find_location($ip);
+        }
+
         $mform->addElement('text', 'username', get_string('username'), 'maxlength="100" size="12" autocapitalize="none"');
         $mform->setType('username', PARAM_RAW);
         $mform->addRule('username', get_string('missingusername'), 'required', null, 'client');
@@ -78,6 +85,12 @@ class login_signup_form extends moodleform implements renderable, templatable {
         $mform->setType('city', core_user::get_property_type('city'));
         if (!empty($CFG->defaultcity)) {
             $mform->setDefault('city', $CFG->defaultcity);
+        } else {
+            // If no default city has been set but a default country has,
+            // then only populate the city based on IP if the country matches the default.
+            if (!empty($CFG->country) && $CFG->country == $info['countrycode']) {
+                $mform->setDefault('city', $info['city'] ?? '');
+            }
         }
 
         $country = get_string_manager()->get_list_of_countries();
@@ -85,10 +98,10 @@ class login_signup_form extends moodleform implements renderable, templatable {
         $country = array_merge($default_country, $country);
         $mform->addElement('select', 'country', get_string('country'), $country);
 
-        if( !empty($CFG->country) ){
+        if (!empty($CFG->country)) {
             $mform->setDefault('country', $CFG->country);
-        }else{
-            $mform->setDefault('country', '');
+        } else {
+            $mform->setDefault('country', $info['countrycode'] ?? '');
         }
 
         profile_signup_fields($mform);
