@@ -1171,6 +1171,41 @@ final class adhoc_task_test extends \advanced_testcase {
     /**
      * Data provider for test_set_soft_retry_delay_rejects_invalid_values.
      *
+     * Test that delete_adhoc_task does not release the lock acquired by get_adhoc_task.
+     *
+     * get_adhoc_task() hands the task back with a lock held, and the caller is
+     * responsible for releasing it (see admin/tool/task/delete_adhoctasks.php).
+     * delete_adhoc_task() only removes the DB record and must not touch the lock,
+     * so it is still the caller's job to release it afterwards. If that doesn't
+     * happen, the lock destructor detects the unreleased lock and throws a
+     * coding_exception in test/developer mode.
+     *
+     * @covers \core\task\manager::delete_adhoc_task
+     */
+    public function test_delete_adhoc_task_does_not_release_lock(): void {
+        $this->resetAfterTest();
+
+        $task = new \core\task\adhoc_test_task();
+        $taskid = manager::queue_adhoc_task($task);
+
+        $task = manager::get_adhoc_task($taskid);
+        $this->assertNotNull($task, 'Task should have been retrieved with a lock.');
+        $lock = $task->get_lock();
+        $this->assertNotNull($lock, 'Task should hold a lock after get_adhoc_task.');
+
+        manager::delete_adhoc_task($taskid);
+
+        // The delete_adhoc_task() call must not release the lock itself; it is the
+        // caller's responsibility. Release it explicitly here as the real caller
+        // (delete_adhoctasks.php) does, now in a finally block.
+        $lock->release();
+
+        // Explicitly unset to trigger __destruct now rather than at end of test.
+        // If the lock was not released above, the destructor throws a coding_exception.
+        unset($task, $lock);
+    }
+
+    /**
      * @return array
      */
     public static function invalid_soft_retry_delay_provider(): array {

@@ -29,18 +29,31 @@ require('../../../config.php');
 
 // Basic security checks.
 require_admin();
-$context = context_system::instance();
+require_sesskey();
 
 // Get task and check the parameter is valid.
 $taskid = required_param('taskid', PARAM_INT);
-$task = \core\task\manager::get_adhoc_task($taskid);
-if (!$task) {
-    throw new \moodle_exception('cannotfindinfo', 'error', $taskid);
+$classname = optional_param('classname', '', PARAM_TEXT);
+$returnurl = new moodle_url('/admin/tool/task/adhoctasks.php', ['classname' => $classname]);
+
+$task = null;
+try {
+    $task = \core\task\manager::get_adhoc_task($taskid);
+    if (!$task) {
+        redirect($returnurl, get_string('deleteadhoclocked', 'tool_task'), null, \core\output\notification::NOTIFY_WARNING);
+    }
+    \core\task\manager::delete_adhoc_task($taskid);
+} catch (moodle_exception $e) {
+    if ($e->errorcode !== 'invalidtaskid') {
+        throw $e;
+    }
+    redirect($returnurl, get_string('deleteadhocnotfound', 'tool_task'), null, \core\output\notification::NOTIFY_ERROR);
+} finally {
+    // The get_adhoc_task() call hands the task back with a lock held. The
+    // delete_adhoc_task() call does not know about the lock, so it is this
+    // caller's responsibility to always release it, even if an exception is
+    // thrown in between.
+    $task?->get_lock()?->release();
 }
 
-$returnurl = new moodle_url('/admin/tool/task/adhoctasks.php',
-        ['classname' => get_class($task)]);
-
-require_sesskey();
-\core\task\manager::delete_adhoc_task($taskid);
-redirect($returnurl);
+redirect($returnurl, get_string('deleteadhocsuccess', 'tool_task'), null, \core\output\notification::NOTIFY_SUCCESS);
