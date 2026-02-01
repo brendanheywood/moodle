@@ -320,7 +320,11 @@ class tool_task_renderer extends plugin_renderer_base {
 
             // Add delete link with modal trigger.
             $deletelink = html_writer::link(
-                new moodle_url($adhocdeleteurl, ['taskid' => $taskid, 'sesskey' => sesskey()]),
+                new moodle_url($adhocdeleteurl, [
+                    'taskid' => $taskid,
+                    'sesskey' => sesskey(),
+                    'classname' => get_class($task),
+                ]),
                 get_string('delete'),
                 [
                     'class' => 'btn btn-danger',
