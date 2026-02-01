@@ -1498,6 +1498,7 @@ $string['newloginnotificationbodyfull'] = '<p>Hi {$a->userfullname},</p>
 <li>{$a->logintime}</li>
 <li>Device: {$a->logindevice}</li>
 <li>IP: {$a->loginip}</li>
+<li>Estimated location: {$a->location}</li>
 </ul>
 <p>If this was you, then you don\'t need to do anything.</p>
 <p>If you don\'t recognise this activity, please <a href="{$a->changepasswordlink}">change your password</a>.</p>';

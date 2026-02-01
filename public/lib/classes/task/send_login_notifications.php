@@ -25,7 +25,6 @@ namespace core\task;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class send_login_notifications extends adhoc_task {
-
     use \core\task\logging_trait;
 
     /**
@@ -53,7 +52,18 @@ class send_login_notifications extends adhoc_task {
         $useremail = ($USER->username != $USER->email) ? $USER->email : '';
         $logindevice = $customdata->ismoodleapp ? get_string('mobileapp', 'tool_mobile') : '';
         $logindevice .= ' ' . $customdata->useragent;
+
+        require_once($CFG->dirroot . '/iplookup/lib.php');
         $loginip = $customdata->loginip;
+        $info = iplookup_find_location($customdata->loginip);
+        if (!$info['error']) {
+            $location = $info['city'];
+            $location .= ', ' . $info['region'];
+            $location .= ', ' . $info['country'];
+        } else {
+            $location = $info['error'];
+        }
+
         $logintime = userdate($customdata->logintime);
 
         $changepasswordlink = (new \moodle_url('/user/preferences.php', ['userid' => $USER->id]))->out(false);
@@ -76,8 +86,18 @@ class send_login_notifications extends adhoc_task {
         $eventdata->notification      = 1;
         $eventdata->subject           = get_string('newloginnotificationtitle', 'moodle', $sitename);
         $eventdata->fullmessageformat = FORMAT_HTML;
-        $info = compact('sitename', 'siteurl', 'userfullname', 'username', 'useremail',
-            'logindevice', 'logintime', 'loginip', 'changepasswordlink');
+        $info = compact(
+            'changepasswordlink',
+            'location',
+            'logindevice',
+            'loginip',
+            'logintime',
+            'sitename',
+            'siteurl',
+            'useremail',
+            'userfullname',
+            'username',
+        );
         $eventdata->fullmessagehtml   = get_string('newloginnotificationbodyfull', 'moodle', $info);
         $eventdata->fullmessage       = html_to_text($eventdata->fullmessagehtml);
         $eventdata->smallmessage      = get_string('newloginnotificationbodysmall', 'moodle', $username);
