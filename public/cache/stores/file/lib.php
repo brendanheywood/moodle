@@ -156,6 +156,13 @@ class cachestore_file extends store implements
     protected $locks = [];
 
     /**
+     * Timing information when debugging locks.
+     *
+     * @var array $locksheldfor
+     */
+    protected $locksheldfor = [];
+
+    /**
      * Serializer for this store.
      *
      * @var string
@@ -1062,7 +1069,21 @@ class cachestore_file extends store implements
      * @return bool
      */
     public function acquire_lock($key, $ownerid): bool {
+        global $CFG;
+
+        $beforelock = microtime(true);
         $lock = $this->lockfactory->get_lock($key, $this->lockwait);
+
+        if (!empty($CFG->debugcachelocks)) {
+            $lockwait = microtime(true) - $beforelock;
+            if ($lockwait >= (float)$CFG->debugcachelocks) {
+                $id = $this->definition->get_id();
+                // @codingStandardsIgnoreLine
+                error_log(sprintf("cachestore_file: $id lock wait $key for %.3f s", $lockwait));
+            }
+            $this->locksheldfor[$key] = microtime(true);
+        }
+
         if ($lock) {
             $this->locks[$key][$ownerid] = $lock;
         }
@@ -1077,6 +1098,7 @@ class cachestore_file extends store implements
      * @return bool
      */
     public function release_lock($key, $ownerid): bool {
+        global $CFG;
         if (!array_key_exists($key, $this->locks)) {
             return false; // No lock to release.
         }
@@ -1087,6 +1109,16 @@ class cachestore_file extends store implements
         if ($unlocked) {
             unset($this->locks[$key]);
         }
+
+        if (!empty($CFG->debugcachelocks)) {
+            $delta = microtime(true) - $this->locksheldfor[$key];
+            if ($delta >= (float)$CFG->debugcachelocks) {
+                $id = $this->definition->get_id();
+                // @codingStandardsIgnoreLine
+                error_log(sprintf("cachestore_file: $id lock held $key for %.3f s", $delta));
+            }
+        }
+
         return $unlocked;
     }
 
