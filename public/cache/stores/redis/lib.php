@@ -151,6 +151,9 @@ class cachestore_redis extends store implements
     /** @var ?array Array of current locks, or null if we haven't registered shutdown function */
     protected $currentlocks = null;
 
+    /** @var array Timing information when debugging locks */
+    protected $locksheldfor = [];
+
     /** @var clock */
     private readonly clock $clock;
 
@@ -676,8 +679,11 @@ class cachestore_redis extends store implements
      * @return bool True if the lock was acquired, false if it was not.
      */
     public function acquire_lock($key, $ownerid) {
+        global $CFG;
+
         $timelimit = $this->clock->time() + $this->lockwait;
         $startlocktime = $this->clock->time();
+        $beforelock = microtime(true);
 
         do {
             // Lock already exists, wait 1 second then retry.
@@ -705,6 +711,16 @@ class cachestore_redis extends store implements
             }
 
             $this->currentlocks[$key] = $ownerid;
+
+            if (!empty($CFG->debugcachelocks)) {
+                $lockwait = microtime(true) - $beforelock;
+                if ($lockwait >= (float)$CFG->debugcachelocks) {
+                    $id = $this->definition->get_id();
+                    // @codingStandardsIgnoreLine
+                    error_log(sprintf("cachestore_redis: $id lock wait $key for %.3f s", $lockwait));
+                }
+                $this->locksheldfor[$key] = microtime(true);
+            }
 
             return true;
         } while ($this->clock->time() < $timelimit);
@@ -796,8 +812,17 @@ class cachestore_redis extends store implements
      * @return bool True if the lock is released, false if it is not.
      */
     public function release_lock($key, $ownerid) {
+        global $CFG;
         if ($this->check_lock_state($key, $ownerid)) {
             unset($this->currentlocks[$key]);
+            if (!empty($CFG->debugcachelocks)) {
+                $delta = microtime(true) - $this->locksheldfor[$key];
+                if ($delta >= (float)$CFG->debugcachelocks) {
+                    $id = $this->definition->get_id();
+                    // @codingStandardsIgnoreLine
+                    error_log(sprintf("cachestore_redis: $id lock held $key for %.3f s", $delta));
+                }
+            }
             return ($this->redis->del($key) !== false);
         }
         return false;
