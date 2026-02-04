@@ -541,7 +541,7 @@ class component {
             return false;
         }
 
-        if ($cache['plugintypes']['mod'] !== "$CFG->dirroot/mod") {
+        if ($cache['plugintypes']['mod'] !== $CFG->dirroot . DIRECTORY_SEPARATOR . 'mod') {
             // phpcs:ignore moodle.Commenting.InlineComment.NotCapital
             // $CFG->dirroot was changed.
             return false;
