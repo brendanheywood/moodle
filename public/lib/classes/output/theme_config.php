@@ -1852,6 +1852,37 @@ class theme_config {
      * @return string full file path
      */
     public function resolve_image_location($image, $component, $svg = false) {
+
+        $cachekey = "$image-$component-$svg";
+
+        $cache = \cache::make('core', 'theme_paths');
+        $imagefile = $cache->get($cachekey);
+        if ($imagefile) {
+            if ($imagefile == '-') {
+                return null;
+            }
+            return $imagefile;
+        }
+
+        $imagefile = $this->resolve_image_location_raw($image, $component, $svg);
+
+        // We still want to cache when no image was found.
+        if ($imagefile == null) {
+            $imagefile = '-';
+        }
+        $cache->set($cachekey, $imagefile);
+        return $imagefile;
+    }
+
+    /**
+     * Resolves the real image location.
+     *
+     * @param string $image name of image, may contain relative path
+     * @param string $component
+     * @param bool|null $svg Should SVG images also be looked for? If null, falls back to auto-detection of browser support
+     * @return string full file path
+     */
+    private function resolve_image_location_raw($image, $component, $svg = false) {
         global $CFG;
 
         if (!is_bool($svg)) {

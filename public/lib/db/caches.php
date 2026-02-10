@@ -642,4 +642,9 @@ $definitions = array(
         'simpledata' => true,
         'ttl' => 1800,
     ],
+    // Cache to store theme paths.
+    'theme_paths' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'staticacceleration' => true,
+    ],
 );
