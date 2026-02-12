@@ -137,18 +137,18 @@ class application_cache extends cache implements loader_with_locking_interface {
      * @return bool Always returns true
      * @throws moodle_exception If the lock cannot be obtained
      */
-    public function acquire_lock($key) {
+    public function acquire_lock($key, $timeout = null) {
         $releaseparent = false;
         try {
             if ($this->get_loader() !== false) {
-                $this->get_loader()->acquire_lock($key);
+                $this->get_loader()->acquire_lock($key, $timeout);
                 // We need to release this lock later if the lock is not successful.
                 $releaseparent = true;
             }
             $hashedkey = helper::hash_key($key, $this->get_definition());
             $before = microtime(true);
             if ($this->nativelocking) {
-                $lock = $this->get_store()->acquire_lock($hashedkey, $this->get_identifier());
+                $lock = $this->get_store()->acquire_lock($hashedkey, $this->get_identifier(), $timeout);
             } else {
                 $this->ensure_cachelock_available();
                 $lock = $this->cachelockinstance->lock($hashedkey, $this->get_identifier());

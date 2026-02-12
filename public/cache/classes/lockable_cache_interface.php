@@ -36,7 +36,7 @@ interface lockable_cache_interface {
      *      The use of this property is entirely optional and implementations can act as they like upon it.
      * @return bool True if the lock could be acquired, false otherwise.
      */
-    public function acquire_lock($key, $ownerid);
+    public function acquire_lock($key, $ownerid, $timeout = null);
 
     /**
      * Test if there is already a lock for the given key and if there is whether it belongs to the calling code.

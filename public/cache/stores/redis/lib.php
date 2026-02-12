@@ -675,7 +675,10 @@ class cachestore_redis extends store implements
      * @param string $ownerid Information to identify owner of lock if acquired.
      * @return bool True if the lock was acquired, false if it was not.
      */
-    public function acquire_lock($key, $ownerid) {
+    public function acquire_lock($key, $ownerid, $timeout = null) {
+        if ($timeout) {
+            $this->lockwait = $timeout;
+        }
         $timelimit = $this->clock->time() + $this->lockwait;
         $startlocktime = $this->clock->time();
 
@@ -694,8 +697,10 @@ class cachestore_redis extends store implements
                     $delay = rand(1000, 1100);
                 }
 
-                usleep($delay * 1000);
-                continue;
+                if (!$timeout === 0) {
+                    usleep($delay * 1000);
+                    continue;
+                }
             }
 
             // If we haven't got it already, better register a shutdown function.
