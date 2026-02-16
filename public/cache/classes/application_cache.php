@@ -169,6 +169,9 @@ class application_cache extends cache implements loader_with_locking_interface {
                 $releaseparent = false;
                 return true;
             } else {
+                if ($timeout !== null) {
+                    return false;
+                }
                 throw new moodle_exception(
                     'ex_unabletolock',
                     'cache',

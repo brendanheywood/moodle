@@ -1062,7 +1062,7 @@ class cachestore_file extends store implements
      * @return bool
      */
     public function acquire_lock($key, $ownerid, $timeout = null): bool {
-        if ($timeout) {
+        if ($timeout !== null) {
             $this->lockwait = $timeout;
         }
         $lock = $this->lockfactory->get_lock($key, $this->lockwait);

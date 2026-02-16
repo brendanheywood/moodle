@@ -697,10 +697,10 @@ class cachestore_redis extends store implements
                     $delay = rand(1000, 1100);
                 }
 
-                if (!$timeout === 0) {
+                if ($timeout !== 0) {
                     usleep($delay * 1000);
-                    continue;
                 }
+                continue;
             }
 
             // If we haven't got it already, better register a shutdown function.
@@ -712,7 +712,7 @@ class cachestore_redis extends store implements
             $this->currentlocks[$key] = $ownerid;
 
             return true;
-        } while ($this->clock->time() < $timelimit);
+        } while ($timeout !== 0 && $this->clock->time() < $timelimit);
 
         return false;
     }
