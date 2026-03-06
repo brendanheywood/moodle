@@ -35,11 +35,28 @@ $PAGE->set_url('/user/language.php', array('id' => $userid, 'course' => $coursei
 
 list($user, $course) = useredit_setup_preference_page($userid, $courseid);
 
+$redirect = new moodle_url("/user/preferences.php", ['userid' => $user->id]);
+
+// Handle a direct language switch submitted with a sesskey (e.g. from the language menu).
+// This bypasses the form and immediately applies the new language.
+if ($directlang = optional_param('lang', null, PARAM_SAFEDIR)) {
+    $returnurl = optional_param('returnurl', null, PARAM_LOCALURL);
+    require_sesskey();
+    if (!get_string_manager()->translation_exists($directlang, false)) {
+        $directlang = core_user::get_property_default('lang');
+    }
+    user_update_user(['id' => $USER->id, 'lang' => $directlang], false, false);
+    \core\event\user_updated::create_from_userid($USER->id)->trigger();
+    $USER->lang = $directlang;
+    $SESSION->lang = $directlang;
+    \core_courseformat\base::session_cache_reset_all();
+    redirect(!empty($returnurl) ? new moodle_url($returnurl) : $redirect);
+}
+
 // Create form.
 $languageform = new user_edit_language_form(null, array('userid' => $user->id));
 $languageform->set_data($user);
 
-$redirect = new moodle_url("/user/preferences.php", array('userid' => $user->id));
 if ($languageform->is_cancelled()) {
     redirect($redirect);
 } else if ($data = $languageform->get_data()) {

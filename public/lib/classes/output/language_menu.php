@@ -91,6 +91,7 @@ class language_menu implements renderable, templatable {
 
         $nodes = [];
         $activelanguage = '';
+        $isloggedinuser = isloggedin() && !isguestuser();
 
         // Add the lang picker if needed.
         foreach ($this->langs as $langtype => $langname) {
@@ -103,12 +104,25 @@ class language_menu implements renderable, templatable {
                     'value' => get_html_lang_attribute_value($langtype),
                 ];
             }
+            if ($isactive) {
+                $url = new \moodle_url('#');
+            } else if ($isloggedinuser) {
+                // For logged-in users, route through user/language.php which persists
+                // the chosen language to their profile as well as the current session.
+                $url = new \moodle_url('/user/language.php', [
+                    'lang' => $langtype,
+                    'sesskey' => sesskey(),
+                    'returnurl' => $this->page->url->out_as_local_url(false),
+                ]);
+            } else {
+                $url = new \moodle_url($this->page->url, ['lang' => $langtype]);
+            }
             $node = [
                 'title' => $langname,
                 'text' => $langname,
                 'link' => true,
                 'isactive' => $isactive,
-                'url' => $isactive ? new \moodle_url('#') : new \moodle_url($this->page->url, ['lang' => $langtype]),
+                'url' => $url,
             ];
             if (!empty($attributes)) {
                 $node['attributes'] = $attributes;
@@ -169,7 +183,15 @@ class language_menu implements renderable, templatable {
         if (!$this->show_language_menu()) {
             return null;
         }
-        $singleselect = new \single_select($this->page->url, 'lang', $this->langs, $this->currentlang, null);
+        if (isloggedin() && !isguestuser()) {
+            $actionurl = new \moodle_url('/user/language.php', [
+                'returnurl' => $this->page->url->out_as_local_url(false),
+            ]);
+            $singleselect = new \single_select($actionurl, 'lang', $this->langs, $this->currentlang, null);
+            $singleselect->method = 'post';
+        } else {
+            $singleselect = new \single_select($this->page->url, 'lang', $this->langs, $this->currentlang, null);
+        }
         $singleselect->label = get_accesshide(\get_string('language'));
         $singleselect->class = 'langmenu';
         return $singleselect->export_for_template($output);
