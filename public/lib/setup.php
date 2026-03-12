@@ -1000,7 +1000,7 @@ if (!isset($CFG->theme)) {
 // majority of cases), use the stored locale specified by admin.
 // note: do not accept lang parameter from POST
 if (isset($_GET['lang']) and ($lang = optional_param('lang', '', PARAM_SAFEDIR))) {
-    if (get_string_manager()->translation_exists($lang, false)) {
+    if (!isloggedin() && get_string_manager()->translation_exists($lang, false)) {
         $SESSION->lang = $lang;
         \core_courseformat\base::session_cache_reset_all();
     }
