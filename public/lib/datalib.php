@@ -1589,7 +1589,7 @@ function user_accesstime_log($courseid=0) {
     global $USER, $CFG, $DB;
 
     if (!isloggedin() or \core\session\manager::is_loggedinas()) {
-        // no access tracking
+        // No access tracking.
         return;
     }
 
@@ -1607,11 +1607,11 @@ function user_accesstime_log($courseid=0) {
         $courseid = SITEID;
     }
 
-    $timenow = time();
+    $clock = \core\di::get(\core\clock::class);
+    $timenow = $clock->time();
 
-/// Store site lastaccess time for the current user
+    // Store site lastaccess time for the current user.
     if ($timenow - $USER->lastaccess > LASTACCESS_UPDATE_SECS) {
-    /// Update $USER->lastaccess for next checks
         $USER->lastaccess = $timenow;
 
         $last = new stdClass();
@@ -1623,46 +1623,21 @@ function user_accesstime_log($courseid=0) {
     }
 
     if ($courseid == SITEID) {
-    ///  no user_lastaccess for frontpage
+        // No user_lastaccess for frontpage.
         return;
     }
 
-/// Store course lastaccess times for the current user
-    if (empty($USER->currentcourseaccess[$courseid]) or ($timenow - $USER->currentcourseaccess[$courseid] > LASTACCESS_UPDATE_SECS)) {
-
-        $lastaccess = $DB->get_field('user_lastaccess', 'timeaccess', array('userid'=>$USER->id, 'courseid'=>$courseid));
-
-        if ($lastaccess === false) {
-            // Update course lastaccess for next checks
-            $USER->currentcourseaccess[$courseid] = $timenow;
-
-            $last = new stdClass();
-            $last->userid     = $USER->id;
-            $last->courseid   = $courseid;
-            $last->timeaccess = $timenow;
-            try {
-                $DB->insert_record_raw('user_lastaccess', $last, false);
-            } catch (dml_write_exception $e) {
-                // During a race condition we can fail to find the data, then it appears.
-                // If we still can't find it, rethrow the exception.
-                $lastaccess = $DB->get_field('user_lastaccess', 'timeaccess', array('userid' => $USER->id,
-                                                                                    'courseid' => $courseid));
-                if ($lastaccess === false) {
-                    throw $e;
-                }
-                // If we did find it, the race condition was true and another thread has inserted the time for us.
-                // We can just continue without having to do anything.
-            }
-
-        } else if ($timenow - $lastaccess <  LASTACCESS_UPDATE_SECS) {
-            // no need to update now, it was updated recently in concurrent login ;-)
-
-        } else {
-            // Update course lastaccess for next checks
-            $USER->currentcourseaccess[$courseid] = $timenow;
-
-            $DB->set_field('user_lastaccess', 'timeaccess', $timenow, array('userid'=>$USER->id, 'courseid'=>$courseid));
-        }
+    // Store course lastaccess times for the current user.
+    if (
+        empty($USER->currentcourseaccess[$courseid]) ||
+        ($timenow - $USER->currentcourseaccess[$courseid] > LASTACCESS_UPDATE_SECS)
+    ) {
+        $USER->currentcourseaccess[$courseid] = $timenow;
+        $DB->upsert_record('user_lastaccess', [
+            'userid' => $USER->id,
+            'courseid' => $courseid,
+            'timeaccess' => $timenow,
+        ]);
     }
 }
 

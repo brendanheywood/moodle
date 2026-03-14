@@ -991,6 +991,69 @@ final class datalib_test extends \advanced_testcase {
     }
 
     /**
+     * Test user_accesstime_log behaviour: upserts on first access, updates stale records,
+     * skips recent access (in-memory cache), skips frontpage, and handles concurrent inserts.
+     *
+     * @covers ::user_accesstime_log
+     */
+    public function test_user_accesstime_log(): void {
+        global $USER, $DB;
+        $this->resetAfterTest();
+
+        $user   = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course();
+        $this->getDataGenerator()->enrol_user($user->id, $course->id);
+        $this->setUser($user);
+
+        // First access: no existing record, should be upserted.
+        $clock = $this->mock_clock_with_frozen(1000000);
+        $USER->lastaccess = 0;
+        unset($USER->currentcourseaccess[$course->id]);
+
+        $this->assertFalse($DB->record_exists('user_lastaccess', ['userid' => $user->id, 'courseid' => $course->id]));
+        user_accesstime_log($course->id);
+        $this->assertEquals(
+            $clock->time(),
+            $DB->get_field('user_lastaccess', 'timeaccess', ['userid' => $user->id, 'courseid' => $course->id])
+        );
+
+        // Recent access: in-memory cache is fresh, should not update.
+        $clock->set_to(1000010); // Within LASTACCESS_UPDATE_SECS.
+        $USER->currentcourseaccess[$course->id] = 1000000;
+        user_accesstime_log($course->id);
+        $this->assertEquals(
+            1000000,
+            $DB->get_field('user_lastaccess', 'timeaccess', ['userid' => $user->id, 'courseid' => $course->id])
+        );
+
+        // Stale access: enough time has passed, should update.
+        $stale = 1000000;
+        $now   = $stale + LASTACCESS_UPDATE_SECS + 100;
+        $clock->set_to($now);
+        $USER->currentcourseaccess[$course->id] = $stale;
+        user_accesstime_log($course->id);
+        $this->assertEquals(
+            $now,
+            $DB->get_field('user_lastaccess', 'timeaccess', ['userid' => $user->id, 'courseid' => $course->id])
+        );
+
+        // Concurrent insert: pre-existing stale row, current timestamp should win.
+        $clock->set_to($now + LASTACCESS_UPDATE_SECS + 50);
+        $DB->set_field('user_lastaccess', 'timeaccess', $stale, ['userid' => $user->id, 'courseid' => $course->id]);
+        unset($USER->currentcourseaccess[$course->id]);
+        user_accesstime_log($course->id);
+        $this->assertEquals(
+            $clock->time(),
+            $DB->get_field('user_lastaccess', 'timeaccess', ['userid' => $user->id, 'courseid' => $course->id])
+        );
+
+        // Frontpage: SITEID should never write user_lastaccess.
+        $DB->delete_records('user_lastaccess', ['userid' => $user->id]);
+        user_accesstime_log(SITEID);
+        $this->assertFalse($DB->record_exists('user_lastaccess', ['userid' => $user->id]));
+    }
+
+    /**
      * Data provider for test_get_safe_orderby_multiple().
      *
      * @return array
