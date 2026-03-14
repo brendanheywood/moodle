@@ -759,23 +759,19 @@ function grade_set_setting($courseid, $name, $value) {
     global $DB;
 
     if (is_null($value)) {
-        $DB->delete_records('grade_settings', array('courseid'=>$courseid, 'name'=>$name));
-
-    } else if (!$existing = $DB->get_record('grade_settings', array('courseid'=>$courseid, 'name'=>$name))) {
-        $data = new stdClass();
-        $data->courseid = $courseid;
-        $data->name     = $name;
-        $data->value    = $value;
-        $DB->insert_record('grade_settings', $data);
-
+        $DB->delete_records('grade_settings', [
+            'courseid'  => $courseid,
+            'name'      => $name,
+        ]);
     } else {
-        $data = new stdClass();
-        $data->id       = $existing->id;
-        $data->value    = $value;
-        $DB->update_record('grade_settings', $data);
+        $DB->upsert_record('grade_settings', [
+            'courseid'  => $courseid,
+            'name'      => $name,
+            'value'     => $value,
+        ]);
     }
 
-    grade_get_setting($courseid, null, null, true); // reset the cache
+    grade_get_setting($courseid, null, null, true); // Reset the cache.
 }
 
 /**

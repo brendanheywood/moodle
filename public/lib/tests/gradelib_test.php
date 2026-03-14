@@ -369,6 +369,75 @@ final class gradelib_test extends \advanced_testcase {
     }
 
     /**
+     * Test grade_set_setting inserts, updates, handles concurrent inserts, and deletes.
+     *
+     * @covers ::grade_set_setting
+     * @covers ::grade_get_setting
+     */
+    public function test_grade_set_setting(): void {
+        global $DB;
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course();
+
+        // Insert: no existing row — value should appear in DB and cache.
+        grade_set_setting($course->id, 'displaytype', '3');
+        $this->assertEquals('3', grade_get_setting($course->id, 'displaytype'));
+        $this->assertEquals(
+            '3',
+            $DB->get_field('grade_settings', 'value', ['courseid' => $course->id, 'name' => 'displaytype'])
+        );
+
+        // Update: row already exists — value should be overwritten.
+        grade_set_setting($course->id, 'displaytype', '2');
+        $this->assertEquals('2', grade_get_setting($course->id, 'displaytype'));
+        $this->assertEquals(
+            1,
+            $DB->count_records('grade_settings', ['courseid' => $course->id, 'name' => 'displaytype']),
+            'Update must not create a second row'
+        );
+
+        // Concurrent insert: a row is already in the DB for the same (courseid, name) but the
+        // caller has stale state — upsert_record must overwrite without a duplicate-key error.
+        $DB->set_field(
+            'grade_settings',
+            'value',
+            'stale',
+            ['courseid' => $course->id, 'name' => 'displaytype']
+        );
+        grade_set_setting($course->id, 'displaytype', '1');
+        $this->assertEquals(
+            '1',
+            $DB->get_field('grade_settings', 'value', ['courseid' => $course->id, 'name' => 'displaytype'])
+        );
+
+        // Null value: row should be deleted.
+        grade_set_setting($course->id, 'displaytype', null);
+        $this->assertFalse(
+            $DB->record_exists('grade_settings', ['courseid' => $course->id, 'name' => 'displaytype'])
+        );
+        $this->assertEquals('default', grade_get_setting($course->id, 'displaytype', 'default'));
+
+        // Null value when no row exists: should not error.
+        grade_set_setting($course->id, 'displaytype', null);
+        $this->assertFalse(
+            $DB->record_exists('grade_settings', ['courseid' => $course->id, 'name' => 'displaytype'])
+        );
+
+        // Different settings for the same course are independent.
+        grade_set_setting($course->id, 'aggregationposition', '0');
+        grade_set_setting($course->id, 'displaytype', '3');
+        $this->assertEquals('0', grade_get_setting($course->id, 'aggregationposition'));
+        $this->assertEquals('3', grade_get_setting($course->id, 'displaytype'));
+
+        // Same setting name is isolated per course.
+        $course2 = $this->getDataGenerator()->create_course();
+        grade_set_setting($course2->id, 'displaytype', '1');
+        $this->assertEquals('3', grade_get_setting($course->id, 'displaytype'), 'course 1 unchanged');
+        $this->assertEquals('1', grade_get_setting($course2->id, 'displaytype'), 'course 2 correct');
+    }
+
+    /**
      * When getting a calculated grade containing an error, we mark grading finished and don't keep trying to regrade.
      *
      * @covers \grade_get_grades()
