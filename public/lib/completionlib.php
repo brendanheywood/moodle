@@ -1252,18 +1252,18 @@ class completion_info {
             // Has real (nonzero) id meaning that a database row exists, update
             $DB->update_record('course_modules_completion', $data);
         }
-        $dataview = new stdClass();
-        $dataview->coursemoduleid = $data->coursemoduleid;
-        $dataview->userid = $data->userid;
-        $dataview->id = $DB->get_field('course_modules_viewed', 'id',
-            ['coursemoduleid' => $dataview->coursemoduleid, 'userid' => $dataview->userid]);
-        if (!$data->viewed && $dataview->id) {
-            $DB->delete_records('course_modules_viewed', ['id' => $dataview->id]);
-        }
 
-        if (!$dataview->id && $data->viewed) {
-            $dataview->timecreated = time();
-            $dataview->id = $DB->insert_record('course_modules_viewed', $dataview);
+        if (!$data->viewed) {
+            $DB->delete_records('course_modules_viewed', [
+                'userid'         => $data->userid,
+                'coursemoduleid' => $data->coursemoduleid,
+            ]);
+        } else {
+            $DB->upsert_record('course_modules_viewed', null, [
+                'userid'         => $data->userid,
+                'coursemoduleid' => $data->coursemoduleid,
+                'timecreated'    => time(),
+            ]);
         }
         $transaction->allow_commit();
 
