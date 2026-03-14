@@ -461,7 +461,9 @@ final class externallib_test extends \core_external\tests\externallib_testcase {
         $this->resetAfterTest(true);
         $CFG->enablecompletion = 1;
 
-        $timenow = time();
+        $clock = $this->mock_clock_with_frozen(1000000);
+        $timenow = $clock->time();
+
         $coursedata1 = array(
             // Adding tags here to check that \core_external\util::format_string works.
             'fullname'         => '<b>Course 1</b>',
@@ -495,7 +497,6 @@ final class externallib_test extends \core_external\tests\externallib_testcase {
         $this->getDataGenerator()->enrol_user($student->id, $course2->id, $studentroleid);
 
         // Force last access.
-        $timenow = time();
         $lastaccess = array(
             'userid' => $student->id,
             'courseid' => $course1->id,
