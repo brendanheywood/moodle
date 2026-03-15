@@ -65,8 +65,7 @@ if ($mform && ($mform->is_cancelled() || !empty($CFG->preventscheduledtaskchange
             $task->set_month('*');
             $task->set_day_of_week('*');
             $task->set_day('*');
-            $task->set_disabled('*');
-            $task->set_customised(false);
+            $task->set_disabled(false);
         } else {
             $task->set_minute($data->minute);
             $task->set_hour($data->hour);
@@ -74,7 +73,6 @@ if ($mform && ($mform->is_cancelled() || !empty($CFG->preventscheduledtaskchange
             $task->set_day_of_week($data->dayofweek);
             $task->set_day($data->day);
             $task->set_disabled($data->disabled);
-            $task->set_customised(true);
         }
 
         try {

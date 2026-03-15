@@ -50,6 +50,30 @@ class manager {
     const ADHOC_TASK_QUEUE_MODE_FILLING = 1;
 
     /**
+     * SQL fragment (referencing alias `tsa` for task_scheduled_adhoc) that filters
+     * adhoc task rows to only those eligible to run right now.
+     *
+     * A task is eligible when:
+     *  - it has no scheduled adhoc config (plain adhoc, always eligible), OR
+     *  - its scheduled config is enabled AND the run window is open:
+     *      nextruntime = 0 (wildcard/ASAP) OR
+     *      (nextruntime <= now AND (nextstoptime = 0 OR nextstoptime + 60 >= now))
+     *
+     * Requires bind param :winnow (= current unix timestamp).
+     * Requires a LEFT JOIN {task_scheduled_adhoc} tsa ON tsa.classname = <task classname column>.
+     */
+    const ADHOC_SCHEDULE_ELIGIBILITY_SQL = "(
+        tsa.id IS NULL
+        OR (
+            tsa.disabled = 0
+            AND (
+                tsa.nextruntime = 0
+                OR (tsa.nextruntime <= :winnow AND (tsa.nextstoptime = 0 OR tsa.nextstoptime + 60 >= :winnow2))
+            )
+        )
+    )";
+
+    /**
      * @var int Used to set the retention period for adhoc tasks that have failed and to be cleaned up.
      * The number is in week unit. The default value is 4 weeks.
      */
@@ -182,7 +206,7 @@ class manager {
     }
 
     /**
-     * Update the database to contain a list of scheduled ahoc task for a component.
+     * Update the database to contain a list of scheduled adhoc task for a component.
      * The list of scheduled tasks is taken from @load_scheduled_adhoc_tasks_for_component.
      * Will throw exceptions for any errors.
      *
@@ -206,20 +230,15 @@ class manager {
                 $canonicalclassname = self::get_canonical_class_name($classname);
                 $validtasks[] = $canonicalclassname;
 
-                // Check if it's already in the table.
+                // Only insert if not already present; existing records are left untouched.
                 if (!$DB->record_exists('task_scheduled_adhoc', ['classname' => $canonicalclassname])) {
-                    // Create an instance to use the adhoc_task_scheduled bridge.
                     $adhoctask = new $classname();
                     $scheduledtask = new \core\task\adhoc_task_scheduled($adhoctask);
                     $scheduledtask->set_component($componentname);
                     $scheduledtask->set_next_run_time(0);
                     $scheduledtask->set_next_stop_time(0);
-                    // By default, disabled column should be disabled.
-                    $scheduledtask->set_disabled(true);
-
-                    // Insert the new task in the database.
-                    $record = self::record_from_scheduled_adhoc_task($scheduledtask);
-                    $DB->insert_record('task_scheduled_adhoc', $record);
+                    $scheduledtask->set_disabled(false);
+                    $DB->insert_record('task_scheduled_adhoc', self::record_from_scheduled_adhoc_task($scheduledtask));
                 }
             }
         }
@@ -322,6 +341,12 @@ class manager {
             return false;
         }
 
+        // Don't queue if the task's scheduled adhoc config is disabled.
+        $adhoctaskscheduled = self::get_scheduled_adhoc_task(self::get_canonical_class_name($task));
+        if ($adhoctaskscheduled && !$adhoctaskscheduled->is_enabled()) {
+            return false;
+        }
+
         if ($userid = $task->get_userid()) {
             // User found. Check that they are suitable.
             \core_user::require_active_user(\core_user::get_user($userid, '*', MUST_EXIST), true, true);
@@ -386,8 +411,21 @@ class manager {
         $original = $DB->get_record('task_scheduled_adhoc', ['classname' => $classname], 'id');
         $record = self::record_from_scheduled_adhoc_task($task);
         $record->id = $original->id;
-        $record->nextruntime = $task->get_next_scheduled_time();
-        $record->nextstoptime = $task->get_max_next_scheduled_time($record->nextruntime);
+
+        // If every field is a wildcard the task can run at any time — store 0 so the runner
+        // picks it up immediately and the UI shows "ASAP" with no stop time.
+        $fields = [$task->get_minute(), $task->get_hour(), $task->get_day(), $task->get_day_of_week(), $task->get_month()];
+        if (!array_diff($fields, ['*'])) {
+            $record->nextruntime = 0;
+            $record->nextstoptime = 0;
+        } else {
+            // Pass now - 60 so that if the current minute already matches the spec,
+            // get_next_scheduled_time returns this minute rather than the next one.
+            $now = \core\di::get(\core\clock::class)->time();
+            $record->nextruntime = $task->get_next_scheduled_time($now - 60);
+            $record->nextstoptime = $task->get_max_next_scheduled_time($record->nextruntime);
+        }
+
         return $DB->update_record('task_scheduled_adhoc', $record);
     }
 
@@ -436,7 +474,6 @@ class manager {
         $record->dayofweek = $task->get_day_of_week();
         $record->month = $task->get_month();
         $record->disabled = $task->get_disabled();
-        $record->customised = $task->is_customised();
         return $record;
     }
 
@@ -583,15 +620,14 @@ class manager {
     }
 
     /**
-     * Utility method to create a task from a DB record.
+     * Utility method to create a scheduled adhoc task from a DB record.
      *
      * @param \stdClass $record
      * @param bool $expandr - if true (default) an 'R' value in a time is expanded to an appropriate int.
      *      If false, they are left as 'R'
-     * @param bool $override - if true loads overridden settings from config.
-     * @return scheduled_task | false
+     * @return adhoc_task_scheduled | false
      */
-    public static function scheduled_adhoc_task_from_record($record, $expandr = true, $override = true) {
+    public static function scheduled_adhoc_task_from_record($record, $expandr = true) {
         $classname = self::get_canonical_class_name($record->classname);
         if (!class_exists($classname)) {
             debugging("Failed to load task: " . $classname, DEBUG_DEVELOPER);
@@ -600,11 +636,6 @@ class manager {
 
         $task = new $classname();
         $task = new adhoc_task_scheduled($task);
-
-        if ($override) {
-            // Update values with those defined in the config, if any are set.
-            $record = self::get_record_with_config_overrides($record);
-        }
 
         if (isset($record->nextruntime)) {
             $task->set_next_run_time($record->nextruntime);
@@ -633,10 +664,10 @@ class manager {
         if (isset($record->disabled)) {
             $task->set_disabled($record->disabled);
         }
-        $task->set_overridden(self::scheduled_task_has_override($classname));
 
         return $task;
     }
+
     /**
      * Given a component name, will load the list of tasks from the scheduled_tasks table for that component.
      * Do not execute tasks loaded from this function - they have not been locked.
@@ -885,15 +916,33 @@ class manager {
     public static function get_all_scheduled_adhoc_tasks() {
         global $DB;
 
+        $now = \core\di::get(\core\clock::class)->time();
         $records = $DB->get_records('task_scheduled_adhoc', null, 'component, classname', '*', IGNORE_MISSING);
         $tasks = [];
 
         foreach ($records as $record) {
             $task = self::scheduled_adhoc_task_from_record($record);
             // Safety check in case the task in the DB does not match a real class (maybe something was uninstalled).
-            if ($task) {
-                $tasks[] = $task;
+            if (!$task) {
+                continue;
             }
+
+            // If the window has expired, advance to the next window using the record we already have.
+            if (!$record->disabled && $record->nextstoptime > 0 && ($record->nextstoptime + 60) < $now) {
+                $fields = [$task->get_minute(), $task->get_hour(), $task->get_day(), $task->get_day_of_week(), $task->get_month()];
+                if (!array_diff($fields, ['*'])) {
+                    $record->nextruntime = 0;
+                    $record->nextstoptime = 0;
+                } else {
+                    $record->nextruntime = $task->get_next_scheduled_time($now - 60);
+                    $record->nextstoptime = $task->get_max_next_scheduled_time($record->nextruntime);
+                }
+                $DB->update_record('task_scheduled_adhoc', $record);
+                $task->set_next_run_time($record->nextruntime);
+                $task->set_next_stop_time($record->nextstoptime);
+            }
+
+            $tasks[] = $task;
         }
 
         return $tasks;
@@ -922,24 +971,6 @@ class manager {
     }
 
     /**
-     * Validate scheduled adhoc task.
-     *
-     * @param adhoc_task_scheduled $task The task classname.
-     * @return bool
-     */
-    public static function validate_scheduled_adhoc_tasks(adhoc_task_scheduled $task): bool {
-        $now = time();
-        // Check validity of the time.
-        if ($now >= $task->get_next_run_time() && $now <= $task->get_next_stop_time() + 60) {
-            return true;
-        } else if ($now >= $task->get_next_stop_time()) {
-            mtrace("Reschedule scheduled adoc task: " . $task->get_classname());
-            self::configure_scheduled_adhoc_task($task);
-        }
-        return false;
-    }
-
-    /**
      * This function will dispatch the next adhoc task in the queue. The task will be handed out
      * with an open lock - possibly on the entire cron process. Make sure you call either
      * {@link adhoc_task_failed} or {@link adhoc_task_complete} to release the lock and reschedule the task.
@@ -959,8 +990,13 @@ class manager {
         $uniquetasksinqueue = [];
         foreach (
             $DB->get_records_sql(
-                'SELECT classname FROM {task_adhoc} WHERE nextruntime < :timestart GROUP BY classname',
-                ['timestart' => $timestart]
+                'SELECT ta.classname
+                   FROM {task_adhoc} ta
+              LEFT JOIN {task_scheduled_adhoc} tsa ON tsa.classname = ta.classname
+                  WHERE ta.nextruntime < :timestart
+                    AND ' . self::ADHOC_SCHEDULE_ELIGIBILITY_SQL . '
+               GROUP BY ta.classname',
+                ['timestart' => $timestart, 'winnow' => $timestart, 'winnow2' => $timestart]
             ) as $uniqueclassname => $record
         ) {
             try {
@@ -1078,13 +1114,6 @@ class manager {
                 continue;
             }
 
-            // Exclude task that has schedule and not valid.
-            $adhoctaskscheduled = self::get_scheduled_adhoc_task(self::get_canonical_class_name($record->classname));
-            if ($adhoctaskscheduled && $adhoctaskscheduled->is_enabled()) {
-                if (!self::validate_scheduled_adhoc_tasks($adhoctaskscheduled)) {
-                    continue;
-                }
-            }
 
             if ($lock = $cronlockfactory->get_lock('adhoc_' . $record->id, 0)) {
                 // Safety check, see if the task has already been processed by another cron run (or attempted and failed).
@@ -1155,18 +1184,6 @@ class manager {
 
         $pertaskclauses = array_map(
             function (string $class, int $limit, int $index): array {
-                // Check if adhoc task is scheduled.
-                $adhoctaskscheduled = self::get_scheduled_adhoc_task(self::get_canonical_class_name($class));
-                if ($adhoctaskscheduled && $adhoctaskscheduled->is_enabled()) {
-                    // Exclude tasks that has schedule and not valid.
-                    if (!self::validate_scheduled_adhoc_tasks($adhoctaskscheduled)) {
-                        return [
-                            "sql" => "(q.classname <> :classname_$index)",
-                            "params" => ["classname_$index" => $class],
-                        ];
-                    }
-                }
-
                 $limitcheck = $limit > 0 ? " AND COALESCE(run.running, 0) < :running_$index" : "";
                 $limitparam = $limit > 0 ? ["running_$index" => $limit] : [];
 
@@ -1183,23 +1200,31 @@ class manager {
         $pertasksql = implode(" OR ", array_column($pertaskclauses, 'sql'));
         $pertaskparams = $pertaskclauses ? array_merge(...array_column($pertaskclauses, 'params')) : [];
 
-        $params = ['timestart' => $timestart] +
+        $params = ['timestart' => $timestart, 'winnow' => $timestart, 'winnow2' => $timestart] +
                 ($runmax ? ['runmax' => $runmax] : []) +
                 $pertaskparams;
 
         return $DB->get_records_sql(
-            "SELECT q.id, q.classname, q.timestarted, COALESCE(run.running, 0) running, run.earliest
-              FROM {task_adhoc} q
-         LEFT JOIN (
-                       SELECT classname, COUNT(*) running, MIN(timestarted) earliest
-                         FROM {task_adhoc} run
-                        WHERE timestarted IS NOT NULL
-                              AND (attemptsavailable > 0 OR attemptsavailable IS NULL)
-                     GROUP BY classname
-                   ) run ON run.classname = q.classname
-             WHERE nextruntime < :timestart
-                   AND q.timestarted IS NULL
-                   AND (q.attemptsavailable > 0 OR q.attemptsavailable IS NULL) " .
+            "SELECT q.id,
+                    q.classname,
+                    q.timestarted,
+                    COALESCE(run.running, 0) running,
+                    run.earliest
+               FROM {task_adhoc} q
+          LEFT JOIN {task_scheduled_adhoc} tsa ON tsa.classname = q.classname
+          LEFT JOIN (
+                         SELECT classname,
+                                COUNT(*) running,
+                                MIN(timestarted) earliest
+                           FROM {task_adhoc} run
+                          WHERE timestarted IS NOT NULL
+                            AND (attemptsavailable > 0 OR attemptsavailable IS NULL)
+                       GROUP BY classname
+                    ) run ON run.classname = q.classname
+              WHERE q.nextruntime < :timestart
+                AND q.timestarted IS NULL
+                AND (q.attemptsavailable > 0 OR q.attemptsavailable IS NULL)
+                AND " . self::ADHOC_SCHEDULE_ELIGIBILITY_SQL . " " .
             (!empty($pertasksql) ? "AND (" . $pertasksql . ") " : "") .
             ($runmax ? "AND (COALESCE(run.running, 0)) < :runmax " : "") .
             "ORDER BY COALESCE(run.running, 0) ASC, run.earliest DESC, q.nextruntime ASC, q.id ASC",

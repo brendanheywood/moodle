@@ -40,8 +40,8 @@ class adhoc_task_scheduled extends scheduled_task {
     /** @var int $nextstoptime - When this task will stop */
     private int $nextstoptime = 0;
 
-    /** @var int $disabled - Is this task disabled in cron? */
-    private bool $disabled = true;
+    /** @var bool $disabled - When true, the task will never run. */
+    private bool $disabled = false;
     /**
      * Constructor.
      * @param adhoc_task $adhoctask The adhoc class.
@@ -118,7 +118,16 @@ class adhoc_task_scheduled extends scheduled_task {
     }
 
     /**
-     * Disable the task.
+     * Returns true if this task is enabled and allowed to run.
+     * Consistent with scheduled_task::is_enabled().
+     * @return bool
+     */
+    public function is_enabled(): bool {
+        return !$this->get_disabled();
+    }
+
+    /**
+     * Disable the task — it will not run until re-enabled.
      */
     public function disable(): void {
         $this->set_disabled(true);
@@ -126,7 +135,7 @@ class adhoc_task_scheduled extends scheduled_task {
     }
 
     /**
-     * Enable the task.
+     * Enable the task so it can run according to its schedule.
      */
     public function enable(): void {
         $this->set_disabled(false);
@@ -191,58 +200,81 @@ class adhoc_task_scheduled extends scheduled_task {
     }
 
     /**
-     * Return the max valid scheduled time.
-     * Examples:
+     * Return the max valid scheduled time — i.e. the last minute of the window in which this
+     * task can run, starting from $nextruntime.
      *
-     * '| * | * | * | * | * |'
-     * If the task runs at 9:00, the maximum valid time is 9:00.
+     * The "window" is the contiguous block of time during which the task can run before it needs
+     * rescheduling. Its end is determined by the most significant constrained (non-wildcard) field:
      *
-     * Range type '| 10-20 | * | * | * | * |':
-     * If the task runs at 9:10, the maximum valid time is 9:20.
-     * At 9:21, the task will be rescheduled to run at 10:10.
+     *  *     | * | * | * | *    every minute, no window limit, returns 0.
+     *  *     | * | * | * | 11   all of November, last minute is Nov 30 23:59.
+     *  30-50 | * | * | * | *    :30–:50 each hour; window ends at :50.
+     *  30    | * | * | * | *    only minute :30; window is just that one slot.
      *
-     * Single value '| 10 | * | * | * | * |':
-     * If the task runs at 9:10, the maximum valid time is 9:10.
-     * At 9:11, the task will be rescheduled to run at 10:10.
+     * Continuous specs (wildcards '*' and ranges 'X-Y') extend the window through their full span.
+     * Discrete specs (single values, comma lists, step expressions) pin the window to the current slot.
      *
-     * Value list '| 10,20,30 | * | * | * | * |':
-     * If the task runs at 9:10, the maximum valid time is 9:10.
-     * At 9:11, the task will be rescheduled to run at 9:20.
-     *
-     * Step value '| * / 10 | * | * | * | * |':
-     * If the task runs at 9:10, the maximum valid time is 9:10.
-     * At 9:11, the task will be rescheduled to run at 9:20.
-     *
-     * @param int $nextruntime The tasks next run time.
+     * @param int $nextruntime The task's next run time.
+     * @return int End of the run window as a Unix timestamp, or 0 if there is no limit.
      */
     public function get_max_next_scheduled_time(int $nextruntime): int {
-        // If the task is scheduled to run at every minute, return never tun time as it don't have max next scheduled time.
-        // TODO: REMOVE.
-        // $fields = [
-        //     $this->get_minute(),
-        //     $this->get_hour(),
-        //     $this->get_day(),
-        //     $this->get_day_of_week(),
-        //     $this->get_month(),
-        // ];
-        // if (!array_diff($fields, ['*'])) {
-        //     return self::NEVER_RUN_TIME;
-        // }
+        // All wildcards means the task runs every minute — no meaningful window end.
+        $fields = [
+            $this->get_minute(),
+            $this->get_hour(),
+            $this->get_day(),
+            $this->get_day_of_week(),
+            $this->get_month(),
+        ];
+        if (!array_diff($fields, ['*'])) {
+            return 0;
+        }
 
-        $validminutes = $this->get_max_valid(self::FIELD_MINUTE);
-        $validhours = $this->get_max_valid(self::FIELD_HOUR);
-        $validdays = $this->get_max_valid(self::FIELD_DAY);
-        $validdaysofweek = $this->get_max_valid(self::FIELD_DAYOFWEEK);
-        $validmonths = $this->get_max_valid(self::FIELD_MONTH);
+        \core_date::set_default_server_timezone();
 
-        // Subtract 60 seconds from the task next run time, to get current range max valid time.
-        return $this->get_next_scheduled_time_inner(
-            $nextruntime - 60,
-            $validminutes,
-            $validhours,
-            $validdays,
-            $validdaysofweek,
-            $validmonths
-        );
+        $minute = (int)date('i', $nextruntime);
+        $hour   = (int)date('H', $nextruntime);
+        $day    = (int)date('j', $nextruntime);
+        $month  = (int)date('n', $nextruntime);
+        $year   = (int)date('Y', $nextruntime);
+
+        // For a continuous spec ('*' or 'X-Y'), the window spans the full valid range so we use
+        // its maximum. For a discrete spec (single value, list, step), each occurrence is its own
+        // window so we keep the current value from $nextruntime.
+        $maxval = function(string $spec, int $current, array $validvalues): int {
+            preg_match_all('@[0-9]+|\*|,|/|-@', $spec, $m);
+            if ($spec === '*' || in_array('-', $m[0])) {
+                return max($validvalues);
+            }
+            return $current;
+        };
+
+        $maxminute = $maxval($this->get_minute(), $minute, $this->get_max_valid(self::FIELD_MINUTE));
+        $maxhour   = $maxval($this->get_hour(),   $hour,   $this->get_max_valid(self::FIELD_HOUR));
+        $maxmonth  = $maxval($this->get_month(),  $month,  $this->get_max_valid(self::FIELD_MONTH));
+
+        // Max day must be clamped to the actual days in the target month (e.g. November has 30).
+        $rawmaxday      = $maxval($this->get_day(), $day, $this->get_max_valid(self::FIELD_DAY));
+        $daysinthismonth = (int)date('t', mktime(0, 0, 0, $maxmonth, 1, $year));
+        $maxday         = min($rawmaxday, $daysinthismonth);
+
+        // Build the end-of-window timestamp, preserving more-significant fields from $nextruntime
+        // for any that are unconstrained (i.e. remain at the level above the outermost constraint).
+        if ($this->get_month() !== '*') {
+            return mktime($maxhour, $maxminute, 59, $maxmonth, $maxday, $year) + 1;
+        }
+
+        if ($this->get_day() !== '*' || $this->get_day_of_week() !== '*') {
+            // For day-of-week constraints we keep the current day since computing the last matching
+            // weekday in an arbitrary range is complex; day-of-month ranges use their max.
+            $targetday = $this->get_day() !== '*' ? $maxday : $day;
+            return mktime($maxhour, $maxminute, 59, $month, $targetday, $year) + 1;
+        }
+
+        if ($this->get_hour() !== '*') {
+            return mktime($maxhour, $maxminute, 59, $month, $day, $year) + 1;
+        }
+
+        return mktime($hour, $maxminute, 59, $month, $day, $year) + 1;
     }
 }

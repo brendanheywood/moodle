@@ -3519,7 +3519,7 @@
         <FIELD NAME="day" TYPE="char" LENGTH="90" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="month" TYPE="char" LENGTH="30" NOTNULL="true" SEQUENCE="false"/>
         <FIELD NAME="dayofweek" TYPE="char" LENGTH="25" NOTNULL="true" SEQUENCE="false"/>
-        <FIELD NAME="disabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1 means run ASAP"/>
+        <FIELD NAME="disabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1 means the task is disabled and will never run"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>

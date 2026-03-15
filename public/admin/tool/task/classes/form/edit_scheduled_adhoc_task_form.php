@@ -148,7 +148,6 @@ class edit_scheduled_adhoc_task_form extends \moodleform {
         $checker->set_day_of_week($data['dayofweek']);
         $checker->set_day($data['day']);
         $checker->set_disabled(false);
-        $checker->set_customised(false);
 
         if (!$checker->is_valid($checker::FIELD_MINUTE)) {
             $error['minutegroup'] = get_string('invaliddata', 'core_error');

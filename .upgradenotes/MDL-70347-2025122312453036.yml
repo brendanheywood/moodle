@@ -2,12 +2,7 @@ issueNumber: MDL-70347
 notes:
   core_task:
     - message: >
-        Introduced a new database table task_scheduled_adhoc to store scheduling information for scheduled ad hoc tasks.
-        Added a new bridge class scheduled_adhoc_task to calculate execution times for scheduled ad hoc tasks.
-        Registered three new scheduled ad hoc tasks in public/lib/db/tasks.php:
-          core\task\asynchronous_backup_task
-          core\task\asynchronous_copy_task
-          core\task\asynchronous_restore_task
-        Updated the \core\task\manager class to support scheduling of scheduled ad hoc tasks.
+        Adhoc tasks to be given a schedule which defined the time windows in which they can start
+        execution.
 
       type: added

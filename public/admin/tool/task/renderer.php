@@ -132,8 +132,7 @@ class tool_task_renderer extends plugin_renderer_base {
                 if ($stats['stop']) {
                     $nextrun = get_string('never', 'admin');
                 } else if ($stats['due'] > 0) {
-                    $nextrun = get_string('asap', 'tool_task');
-                } else if ($stats['nextruntime']) {
+                    $nextrun = \html_writer::span(get_string('asap', 'tool_task'), 'badge bg-success');
                     $nextrun = userdate($stats['nextruntime']);
                 }
 
@@ -307,7 +306,7 @@ class tool_task_renderer extends plugin_renderer_base {
                 $nextruntime = $task->get_next_run_time();
                 $due = $nextruntime < $now;
                 if ($task->get_attempts_available() > 0) {
-                    $nextrun = $due ? get_string('asap', 'tool_task') : userdate($nextruntime);
+                    $nextrun = $due ? \html_writer::span(get_string('asap', 'tool_task'), 'badge bg-success') : userdate($nextruntime);
                 } else {
                     $nextrun = get_string('never', 'admin');
                 }
@@ -393,15 +392,14 @@ class tool_task_renderer extends plugin_renderer_base {
         $table->head = [
             get_string('name'),
             get_string('component', 'tool_task'),
-            get_string('edit'),
             get_string('logs'),
             get_string('lastruntime', 'tool_task'),
             get_string('nextruntime', 'tool_task'),
             get_string('taskscheduleminute', 'tool_task'),
             get_string('taskschedulehour', 'tool_task'),
             get_string('taskscheduleday', 'tool_task'),
-            get_string('taskscheduledayofweek', 'tool_task'),
             get_string('taskschedulemonth', 'tool_task'),
+            get_string('taskscheduledayofweek', 'tool_task'),
             get_string('faildelay', 'tool_task'),
             get_string('default', 'tool_task'),
         ];
@@ -411,7 +409,7 @@ class tool_task_renderer extends plugin_renderer_base {
 
         if (!$showloglink) {
             // Hide the log links.
-            $table->colclasses['3'] = 'hidden';
+            $table->colclasses['2'] = 'hidden';
         }
 
         $data = [];
@@ -426,11 +424,17 @@ class tool_task_renderer extends plugin_renderer_base {
             if (empty($CFG->preventscheduledtaskchanges) && !$task->is_overridden()) {
                 $configureurl = new moodle_url('/admin/tool/task/scheduledtasks.php',
                         ['action' => 'edit', 'task' => $classname]);
-                $editlink = $this->output->action_icon($configureurl, new pix_icon('t/edit',
+                $editicon = $this->render(new pix_icon('t/edit',
                         get_string('edittaskschedule', 'tool_task', $task->get_name())));
+                $namelink = html_writer::link($configureurl,
+                    $task->get_name() . ' ' . $editicon
+                    . html_writer::span('\\' . $classname, 'task-class text-ltr'));
             } else {
-                $editlink = $this->render(new pix_icon('t/locked',
+                $editicon = $this->render(new pix_icon('t/locked',
                         get_string('scheduledtaskchangesdisabled', 'tool_task')));
+                $namelink = $task->get_name()
+                    . ' ' . $editicon
+                    . html_writer::span('\\' . $classname, 'task-class text-ltr');
             }
 
             $loglink = '';
@@ -441,14 +445,12 @@ class tool_task_renderer extends plugin_renderer_base {
                 ));
             }
 
-            $namecellcontent = $task->get_name() . "\n" .
-                html_writer::span('\\' . $classname, 'task-class text-ltr');
+            $namecellcontent = $namelink;
             if ($task->is_overridden()) {
                 // Let the user know the scheduled task is defined in config.
                 $namecellcontent .= "\n" . html_writer::div(get_string('configoverride', 'admin'), 'alert-info');
             }
             $namecell = new html_table_cell($namecellcontent);
-            $namecell->header = true;
             $namecell->id = scheduled_task::get_html_id($classname);
 
             $runnow = '';
@@ -517,15 +519,14 @@ class tool_task_renderer extends plugin_renderer_base {
             $row = new html_table_row([
                         $namecell,
                         new html_table_cell($this->component_name($task->get_component())),
-                        new html_table_cell($editlink),
                         new html_table_cell($loglink),
                         new html_table_cell($this->last_run_time($task) . $runnow),
                         new html_table_cell($this->next_run_time($task)),
                         $this->time_cell($task->get_minute(), $defaulttask->get_minute()),
                         $this->time_cell($task->get_hour(), $defaulttask->get_hour()),
                         $this->time_cell($task->get_day(), $defaulttask->get_day()),
-                        $this->time_cell($task->get_day_of_week(), $defaulttask->get_day_of_week()),
                         $this->time_cell($task->get_month(), $defaulttask->get_month()),
+                        $this->time_cell($task->get_day_of_week(), $defaulttask->get_day_of_week()),
                         $faildelaycell,
                         new html_table_cell($customised)]);
 
@@ -559,6 +560,13 @@ class tool_task_renderer extends plugin_renderer_base {
     public function scheduled_adhoc_tasks_table(array $tasks, string $lastchanged = ''): string {
         global $CFG;
 
+        // Sort by next run time, with "never" (0) at the bottom.
+        usort($tasks, function($a, $b) {
+            $atime = $a->get_next_run_time() ?: PHP_INT_MAX;
+            $btime = $b->get_next_run_time() ?: PHP_INT_MAX;
+            return $atime <=> $btime;
+        });
+
         $showloglink = \core\task\logmanager::has_log_report();
 
         $table = new html_table();
@@ -566,14 +574,15 @@ class tool_task_renderer extends plugin_renderer_base {
         $table->head = [
             get_string('name'),
             get_string('component', 'tool_task'),
-            get_string('edit'),
             get_string('logs'),
             get_string('enabled', 'tool_task'),
+            get_string('nextrunwindow', 'tool_task'),
+            get_string('runwindow', 'tool_task'),
             get_string('taskscheduleminute', 'tool_task'),
             get_string('taskschedulehour', 'tool_task'),
             get_string('taskscheduleday', 'tool_task'),
-            get_string('taskscheduledayofweek', 'tool_task'),
             get_string('taskschedulemonth', 'tool_task'),
+            get_string('taskscheduledayofweek', 'tool_task'),
         ];
 
         $table->attributes['class'] = 'admintable table generaltable table-hover';
@@ -581,7 +590,7 @@ class tool_task_renderer extends plugin_renderer_base {
 
         if (!$showloglink) {
             // Hide the log links.
-            $table->colclasses['3'] = 'hidden';
+            $table->colclasses['2'] = 'hidden';
         }
 
         $data = [];
@@ -596,14 +605,19 @@ class tool_task_renderer extends plugin_renderer_base {
                     '/admin/tool/task/scheduledadhoctasks.php',
                     ['action' => 'edit', 'task' => $classname]
                 );
-                $editlink = $this->output->action_icon(
-                    $configureurl,
+                $editicon = $this->render(
                     new pix_icon('t/edit', get_string('editstaskscheduledadhoc', 'tool_task', $task->get_name()))
                 );
+                $namelink = html_writer::link($configureurl,
+                    $task->get_name() . ' ' . $editicon
+                    . html_writer::span('\\' . $classname, 'task-class text-ltr'));
             } else {
-                $editlink = $this->render(
+                $editicon = $this->render(
                     new pix_icon('t/locked', get_string('scheduledtaskchangesdisabled', 'tool_task'))
                 );
+                $namelink = $task->get_name()
+                    . ' ' . $editicon
+                    . html_writer::span('\\' . $classname, 'task-class text-ltr');
             }
 
             $loglink = '';
@@ -613,27 +627,26 @@ class tool_task_renderer extends plugin_renderer_base {
                     new pix_icon('e/file-text', get_string('viewlogs', 'tool_task', $task->get_name()))
                 );
             }
-            $namecellcontent = $task->get_name() . "\n" .
-                html_writer::span('\\' . $classname, 'task-class text-ltr');
+            $namecellcontent = $namelink;
             if ($task->is_overridden()) {
                 // Let the user know the scheduled task is defined in config.
                 $namecellcontent .= "\n" . html_writer::div(get_string('configoverride', 'admin'), 'alert-info');
             }
             $namecell = new html_table_cell($namecellcontent);
-            $namecell->header = true;
             $namecell->id = scheduled_task::get_html_id($classname);
 
             $row = new html_table_row([
                 $namecell,
                 new html_table_cell($this->component_name($task->get_component())),
-                new html_table_cell($editlink),
                 new html_table_cell($loglink),
                 new html_table_cell($enabled),
+                new html_table_cell($this->scheduled_adhoc_task_next_run_window_cell($task)),
+                new html_table_cell($this->scheduled_adhoc_task_run_window($task->get_next_run_time(), $task->get_next_stop_time())),
                 $this->time_cell($task->get_minute(), '*'),
                 $this->time_cell($task->get_hour(), '*'),
                 $this->time_cell($task->get_day(), '*'),
-                $this->time_cell($task->get_day_of_week(), '*'),
                 $this->time_cell($task->get_month(), '*'),
+                $this->time_cell($task->get_day_of_week(), '*'),
             ]);
 
             $classes = [];
@@ -658,7 +671,85 @@ class tool_task_renderer extends plugin_renderer_base {
     }
 
     /**
-     * Nicely display the name of a component, with its disabled status and internal name.
+     * Format a next-run timestamp for display. Returns "ASAP" when the time is zero or in the past.
+     *
+     * @param int $time Unix timestamp, or 0 for ASAP.
+     * @return string
+     */
+    protected function scheduled_adhoc_task_next_run(int $time): string {
+        return userdate($time, get_string('strftimerecentfull', 'langconfig'));
+    }
+
+    /**
+     * Format a next-stop timestamp for display. Returns "-" when the time is zero (no limit).
+     *
+     * @param int $time Unix timestamp, or 0 for no limit.
+     * @return string
+     */
+    protected function scheduled_adhoc_task_next_stop(int $time): string {
+        if (!$time) {
+            return '-';
+        }
+        return userdate($time, get_string('strftimerecentfull', 'langconfig'));
+    }
+
+    /**
+     * Format the run window (delta between next run and next stop times).
+     *
+     * Shows the duration as a human-readable string, e.g. "2 hours 30 mins".
+     * Returns a dash if either timestamp is missing.
+     *
+     * @param int $starttime Unix timestamp for next run time.
+     * @param int $stoptime Unix timestamp for next stop time.
+     * @return string
+     */
+    protected function scheduled_adhoc_task_run_window(int $starttime, int $stoptime): string {
+        if (!$starttime || !$stoptime) {
+            return '-';
+        }
+        $delta = $stoptime - $starttime;
+        return format_time($delta);
+    }
+
+    /**
+     * Build the "Next run window" table cell for a scheduled adhoc task.
+     *
+     * - Disabled: "Task disabled"
+     * - No window (wildcard): "ASAP" badge
+     * - Inside window: "ASAP" badge + start/stop dates
+     * - Outside window: start/stop dates only
+     *
+     * @param \core\task\adhoc_task_scheduled $task
+     * @return string HTML content for the cell.
+     */
+    protected function scheduled_adhoc_task_next_run_window_cell(\core\task\adhoc_task_scheduled $task): string {
+        if (!$task->is_enabled()) {
+            return get_string('taskdisabled', 'tool_task');
+        }
+
+        $nextruntime = $task->get_next_run_time();
+        $nextstoptime = $task->get_next_stop_time();
+
+        // No window configured — always ASAP.
+        if (!$nextruntime) {
+            return \html_writer::span(get_string('asap', 'tool_task'), 'badge bg-success');
+        }
+
+        $now = time();
+        $insidewindow = $nextruntime <= $now && (!$nextstoptime || $nextstoptime >= $now);
+
+        $out = '';
+        if ($insidewindow) {
+            $out .= \html_writer::span(get_string('asap', 'tool_task'), 'badge bg-success')
+                . html_writer::empty_tag('br');
+        }
+        $out .= $this->scheduled_adhoc_task_next_run($nextruntime)
+            . html_writer::empty_tag('br')
+            . $this->scheduled_adhoc_task_next_stop($nextstoptime);
+        return $out;
+    }
+
+    /**
      *
      * @param string $component component name, e.g. 'core' or 'mod_forum'.
      * @return string HTML.
@@ -716,7 +807,7 @@ class tool_task_renderer extends plugin_renderer_base {
         } else if ($nextrun > time()) {
             $nextrun = userdate($nextrun);
         } else {
-            $nextrun = get_string('asap', 'tool_task');
+            $nextrun = \html_writer::span(get_string('asap', 'tool_task'), 'badge bg-success');
         }
 
         return $nextrun;
