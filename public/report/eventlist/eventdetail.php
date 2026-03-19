@@ -52,7 +52,7 @@ $eventfiles = $directory . '/' . $filename . '.php';
 $title = $eventname::get_name_with_info();
 
 // Define event information.
-$eventinformation = array('title' => $title);
+$eventinformation = ['title' => $title];
 $eventcontents = file_get_contents($eventfiles);
 $eventinformation['filecontents'] = $eventcontents;
 
@@ -69,7 +69,7 @@ if (!$ref->isAbstract()) {
         // No choice but to get information the hard way.
         // Strip out CRUD information.
         $crudpattern = "/(\['crud'\]\s=\s')(\w)/";
-        $result = array();
+        $result = [];
         preg_match($crudpattern, $eventcontents, $result);
         if (!empty($result[2])) {
             $eventinformation['crud'] = report_eventlist_list_generator::get_crud_string($result[2]);
@@ -77,7 +77,7 @@ if (!$ref->isAbstract()) {
 
         // Strip out edulevel information.
         $edulevelpattern = "/(\['edulevel'\]\s=\sself\:\:)(\w*)/";
-        $result = array();
+        $result = [];
         preg_match($edulevelpattern, $eventcontents, $result);
         if (!empty($result[2])) {
             $educationlevel = constant('\core\event\base::' . $result[2]);
@@ -86,7 +86,7 @@ if (!$ref->isAbstract()) {
 
         // Retrieve object table information.
         $affectedtablepattern = "/(\['objecttable'\]\s=\s')(\w*)/";
-        $result = array();
+        $result = [];
         preg_match($affectedtablepattern, $eventcontents, $result);
         if (!empty($result[2])) {
             $eventinformation['objecttable'] = $result[2];
@@ -97,10 +97,10 @@ if (!$ref->isAbstract()) {
 // I can't think of a nice way to get the following information.
 // Searching to see if @type has been used for the 'other' field in the event.
 $othertypepattern = "/(@type\s([\w|\s|.]*))+/";
-$typeparams = array();
+$typeparams = [];
 preg_match_all($othertypepattern, $eventcontents, $typeparams);
 if (!empty($typeparams[2])) {
-    $eventinformation['typeparameter'] = array();
+    $eventinformation['typeparameter'] = [];
     foreach ($typeparams[2] as $typeparameter) {
         $eventinformation['typeparameter'][] = $typeparameter;
     }
@@ -108,10 +108,10 @@ if (!empty($typeparams[2])) {
 
 // Retrieving the 'other' event field information.
 $otherpattern = "/(\*\s{5,}-([\w|\s]*\:[\w|\s|\(|\)|.]*))/";
-$typeparams = array();
+$typeparams = [];
 preg_match_all($otherpattern, $eventcontents, $typeparams);
 if (!empty($typeparams[2])) {
-    $eventinformation['otherparameter'] = array();
+    $eventinformation['otherparameter'] = [];
     foreach ($typeparams[2] as $typeparameter) {
         $eventinformation['otherparameter'][] = $typeparameter;
     }
@@ -124,7 +124,7 @@ if ($parentclass = get_parent_class($eventname)) {
 
 // Fetch all the observers to be matched with this event.
 $allobserverslist = report_eventlist_list_generator::get_observer_list();
-$observers = array();
+$observers = [];
 
 if (isset($allobserverslist['\\core\\event\\base'])) {
     $observers = $allobserverslist['\\core\\event\\base'];
@@ -139,4 +139,3 @@ $PAGE->set_secondary_active_tab('reports');
 // OUTPUT.
 $renderer = $PAGE->get_renderer('report_eventlist');
 echo $renderer->render_event_detail($observers, $eventinformation);
-

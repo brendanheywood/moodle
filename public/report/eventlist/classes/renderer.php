@@ -32,48 +32,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class report_eventlist_renderer extends plugin_renderer_base {
-
-    /**
-     * Renders the event list page with filter form and datatable.
-     *
-     * @param eventfilter_form $form Event filter form.
-     * @param array $tabledata An array of event data to be used by the datatable.
-     * @return string HTML to be displayed.
-     */
-    public function render_event_list($form, $tabledata) {
-
-        $title = get_string('pluginname', 'report_eventlist');
-
-        // Header.
-        $html = $this->output->header();
-        $html .= $this->output->heading($title);
-
-        // Form.
-        ob_start();
-        $form->display();
-        $html .= ob_get_contents();
-        ob_end_clean();
-
-        $this->page->requires->yui_module('moodle-report_eventlist-eventfilter', 'Y.M.report_eventlist.EventFilter.init',
-                array(array('tabledata' => $tabledata)));
-        $this->page->requires->strings_for_js(array(
-            'eventname',
-            'component',
-            'action',
-            'crud',
-            'edulevel',
-            'affectedtable',
-            'dname',
-            'legacyevent',
-            'since'
-            ), 'report_eventlist');
-        $html .= html_writer::start_div('report-eventlist-data-table', array('id' => 'report-eventlist-table'));
-        $html .= html_writer::end_div();
-
-        $html .= $this->output->footer();
-        return $html;
-    }
-
     /**
      * Event detail renderer.
      *
@@ -86,7 +44,7 @@ class report_eventlist_renderer extends plugin_renderer_base {
         $titlehtml = $this->output->header();
         $titlehtml .= $this->output->heading($eventinformation['title']);
 
-        $html = html_writer::start_tag('dl', array('class' => 'list'));
+        $html = html_writer::start_tag('dl', ['class' => 'list']);
 
         $explanation = nl2br($eventinformation['explanation']);
         $html .= html_writer::tag('dt', get_string('eventexplanation', 'report_eventlist'));
@@ -113,7 +71,7 @@ class report_eventlist_renderer extends plugin_renderer_base {
         }
 
         if (isset($eventinformation['parentclass'])) {
-            $url = new moodle_url('eventdetail.php', array('eventname' => $eventinformation['parentclass']));
+            $url = new moodle_url('eventdetail.php', ['eventname' => $eventinformation['parentclass']]);
             $html .= html_writer::tag('dt', get_string('parentevent', 'report_eventlist'));
             $html .= html_writer::tag('dd', html_writer::link($url, $eventinformation['parentclass']));
         }
@@ -164,7 +122,7 @@ class report_eventlist_renderer extends plugin_renderer_base {
         $html .= html_writer::end_tag('dl');
 
         $pagecontent = new html_table();
-        $pagecontent->data = array(array($html));
+        $pagecontent->data = [[$html]];
         $pagehtml = $titlehtml . html_writer::table($pagecontent);
         $pagehtml .= $this->output->footer();
 

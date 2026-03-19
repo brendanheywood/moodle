@@ -22,7 +22,6 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class report_eventlist_list_generator {
-
     /**
      * Convenience method. Returns all of the core events either with or without details.
      *
@@ -149,12 +148,14 @@ class report_eventlist_list_generator {
         // Get general event information.
         $eventdata[$eventfullpath] = $eventfullpath::get_static_info();
         // Create a link for further event detail.
-        $url = new \moodle_url('eventdetail.php', array('eventname' => $eventfullpath));
+        $url = new \moodle_url('eventdetail.php', ['eventname' => $eventfullpath]);
         $link = \html_writer::link($url, $eventfullpath::get_name_with_info());
         $eventdata[$eventfullpath]['fulleventname'] = \html_writer::span($link);
         $eventdata[$eventfullpath]['fulleventname'] .= \html_writer::empty_tag('br');
-        $eventdata[$eventfullpath]['fulleventname'] .= \html_writer::span($eventdata[$eventfullpath]['eventname'],
-                'report-eventlist-name');
+        $eventdata[$eventfullpath]['fulleventname'] .= \html_writer::span(
+            $eventdata[$eventfullpath]['eventname'],
+            'report-eventlist-name'
+        );
 
         $eventdata[$eventfullpath]['crud'] = self::get_crud_string($eventdata[$eventfullpath]['crud']);
         $eventdata[$eventfullpath]['edulevel'] = self::get_edulevel_string($eventdata[$eventfullpath]['edulevel']);
@@ -187,5 +188,55 @@ class report_eventlist_list_generator {
         unset($eventdata[$eventfullpath]['action']);
         unset($eventdata[$eventfullpath]['target']);
         return $eventdata;
+    }
+
+    /**
+     * Return a sorted list of all components that fire events, keyed and valued by component name.
+     *
+     * @return array component => display label
+     */
+    public static function get_component_list() {
+        global $CFG;
+
+        $debuglevel     = $CFG->debug;
+        $debugdisplay   = $CFG->debugdisplay;
+        $debugdeveloper = $CFG->debugdeveloper;
+        $CFG->debug          = 0;
+        $CFG->debugdisplay   = false;
+        $CFG->debugdeveloper = false;
+
+        $eventsignore = [\core\event\unknown_logged::class];
+        $components   = [];
+        $manager      = get_string_manager();
+
+        $events = \core_component::get_component_classes_in_namespace(null, 'event');
+        foreach (array_keys($events) as $classname) {
+            if (!is_a($classname, \core\event\base::class, true)) {
+                continue;
+            }
+            $ref = new \ReflectionClass($classname);
+            if ($ref->isAbstract() || in_array($classname, $eventsignore)) {
+                continue;
+            }
+            $info      = $classname::get_static_info();
+            $component = $info['component'];
+            if (!isset($components[$component])) {
+                if ($component === 'core') {
+                    $label = get_string('core', 'report_eventlist');
+                } else if ($manager->string_exists('pluginname', $component)) {
+                    $label = get_string('pluginname', $component) . ' (' . $component . ')';
+                } else {
+                    $label = $component;
+                }
+                $components[$component] = $label;
+            }
+        }
+
+        $CFG->debug          = $debuglevel;
+        $CFG->debugdisplay   = $debugdisplay;
+        $CFG->debugdeveloper = $debugdeveloper;
+
+        asort($components);
+        return $components;
     }
 }

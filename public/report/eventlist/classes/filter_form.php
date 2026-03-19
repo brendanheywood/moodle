@@ -16,7 +16,7 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once($CFG->libdir.'/formslib.php');
+require_once($CFG->libdir . '/formslib.php');
 
 /**
  * Event list filter form.
@@ -26,7 +26,6 @@ require_once($CFG->libdir.'/formslib.php');
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class report_eventlist_filter_form extends moodleform {
-
     /**
      * Form definition method.
      */
@@ -43,15 +42,19 @@ class report_eventlist_filter_form extends moodleform {
         $mform->addElement('text', 'eventname', get_string('name', 'report_eventlist'));
         $mform->setType('eventname', PARAM_RAW);
 
-        $mform->addElement('selectgroups', 'eventcomponent', get_string('component', 'report_eventlist'),
-            self::group_components_by_type($componentarray));
+        $mform->addElement(
+            'selectgroups',
+            'eventcomponent',
+            get_string('component', 'report_eventlist'),
+            self::group_components_by_type($componentarray)
+        );
         $mform->addElement('select', 'eventedulevel', get_string('edulevel', 'report_eventlist'), $edulevelarray);
         $mform->addElement('select', 'eventcrud', get_string('crud', 'report_eventlist'), $crudarray);
 
-        $buttonarray = array();
+        $buttonarray = [];
         $buttonarray[] = $mform->createElement('button', 'filterbutton', get_string('filter', 'report_eventlist'));
         $buttonarray[] = $mform->createElement('button', 'clearbutton', get_string('clear', 'report_eventlist'));
-        $mform->addGroup($buttonarray, 'filterbuttons', '', array(' '), false);
+        $mform->addGroup($buttonarray, 'filterbuttons', '', [' '], false);
     }
 
     /**
@@ -80,7 +83,7 @@ class report_eventlist_filter_form extends moodleform {
 
         // Sort returned components according to their type, followed by name.
         core_collator::ksort($result);
-        array_walk($result, function(array &$componenttype) {
+        array_walk($result, function (array &$componenttype) {
             core_collator::asort($componenttype);
         });
 
