@@ -179,11 +179,11 @@ final class manager_test extends \advanced_testcase {
                 'concurrencylimit' => 3,
                 'limit' => 100,
                 'pertasklimits' => [
-                    'adhoc_test_task' => 2,
-                    'adhoc_test2_task' => 2,
-                    'adhoc_test3_task' => 2,
-                    'adhoc_test4_task' => 2,
-                    'adhoc_test5_task' => 2,
+                    '\\' . adhoc_test_task::class => 2,
+                    '\\' . adhoc_test2_task::class => 2,
+                    '\\' . adhoc_test3_task::class => 2,
+                    '\\' . adhoc_test4_task::class => 2,
+                    '\\' . adhoc_test5_task::class => 2,
                 ],
                 'tasks' => [
                     new adhoc_test_task(time() - 20, time()),

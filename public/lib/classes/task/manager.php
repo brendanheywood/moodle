@@ -81,12 +81,24 @@ class manager {
     protected static ?int $mode = null;
 
     /**
+     * @var adhoc_task[]|null Cached result of get_unique_adhoc_task_classes().
+     */
+    protected static ?array $uniquetaskcache = null;
+
+    /**
+     * @var int Timestamp when $uniquetaskcache was last populated.
+     */
+    protected static int $uniquetaskcachetime = 0;
+
+    /**
      * Reset the state of the task manager.
      */
     public static function reset_state(): void {
         self::$miniqueue = [];
         self::$numtasks = 0;
         self::$mode = null;
+        self::$uniquetaskcache = null;
+        self::$uniquetaskcachetime = 0;
     }
 
     /**
@@ -704,6 +716,42 @@ class manager {
     }
 
     /**
+     * Returns one adhoc_task instance per unique classname that has tasks due to run.
+     *
+     * Used by {@see get_next_adhoc_task} to determine how many distinct task types are
+     * currently in the queue so that concurrency slots can be distributed fairly.
+     *
+     * Results are statically cached for 60 seconds to avoid repeated expensive queries
+     * when many cron runners call this in quick succession. Pass $fresh = true to bypass
+     * the cache and repopulate it — used when the miniqueue needs filling and an accurate
+     * class count is required for slot calculation.
+     *
+     * @param int $timestart Only consider tasks whose nextruntime is before this timestamp.
+     * @param bool $fresh If true, bypass the cache and run a fresh query.
+     * @return adhoc_task[] Keyed by classname, one instance per unique class.
+     */
+    public static function get_unique_adhoc_task_classes(int $timestart, bool $fresh = false): array {
+        global $DB;
+
+        $clock = \core\di::get(\core\clock::class);
+        $now = $clock->time();
+
+        if (!$fresh && self::$uniquetaskcache !== null && ($now - self::$uniquetaskcachetime) < MINSECS) {
+            return self::$uniquetaskcache;
+        }
+
+        $records = $DB->get_records_sql(
+            'SELECT classname FROM {task_adhoc} WHERE nextruntime < :timestart GROUP BY classname',
+            ['timestart' => $timestart]
+        );
+
+        self::$uniquetaskcache = array_map(['\core\task\manager', 'adhoc_task_from_record'], $records);
+        self::$uniquetaskcachetime = $now;
+
+        return self::$uniquetaskcache;
+    }
+
+    /**
      * This function will dispatch the next adhoc task in the queue. The task will be handed out
      * with an open lock - possibly on the entire cron process. Make sure you call either
      * {@link adhoc_task_failed} or {@link adhoc_task_complete} to release the lock and reschedule the task.
@@ -720,26 +768,33 @@ class manager {
         $concurrencylimit = get_config('core', 'task_adhoc_concurrency_limit');
         $cachedqueuesize = 1200;
 
-        $uniquetasksinqueue = array_map(
-            ['\core\task\manager', 'adhoc_task_from_record'],
-            $DB->get_records_sql(
-                'SELECT classname FROM {task_adhoc} WHERE nextruntime < :timestart GROUP BY classname',
-                ['timestart' => $timestart]
-            )
-        );
+        $uniquetasksinqueue = self::get_unique_adhoc_task_classes($timestart);
 
         if (!isset(self::$numtasks) || self::$numtasks !== count($uniquetasksinqueue)) {
             self::$numtasks = count($uniquetasksinqueue);
             self::$miniqueue = [];
         }
 
+        /*
+         * When the miniqueue needs filling, use a fresh unique-class query rather than the
+         * cached result. The cached count is sufficient for the change-detection check above,
+         * but slot distribution and per-task concurrency limits must reflect any task classes
+         * that have been queued since the cache was last populated (within the 60s TTL).
+         */
+        $tasksforslots = empty(self::$miniqueue)
+            ? self::get_unique_adhoc_task_classes($timestart, true)
+            : $uniquetasksinqueue;
+
         $concurrencylimits = [];
         if ($checklimits) {
-            $concurrencylimits = array_map(
-                function ($task) {
-                    return $task->get_concurrency_limit();
-                },
-                $uniquetasksinqueue
+            $concurrencylimits = array_filter(
+                array_map(
+                    function ($task) {
+                        return $task->get_concurrency_limit();
+                    },
+                    $tasksforslots
+                ),
+                fn($limit) => $limit > 0
             );
         }
 
@@ -756,7 +811,7 @@ class manager {
          * We use the short-ternary to force the value to 1 in the case when the number of tasks
          * exceeds the runners (e.g., there are 8 tasks and 4 runners, ⌊4/(8+1)⌋ = 0).
          */
-        $slots = floor($concurrencylimit / (count($uniquetasksinqueue) + 1)) ?: 1;
+        $slots = floor($concurrencylimit / (count($tasksforslots) + 1)) ?: 1;
         if (empty(self::$miniqueue)) {
             self::$mode = self::ADHOC_TASK_QUEUE_MODE_DISTRIBUTING;
             self::$miniqueue = self::get_candidate_adhoc_tasks(
@@ -799,14 +854,29 @@ class manager {
         /*
          * If this happens that means each task has consumed its fair share of capacity, but there's still
          * runners left over (and we are one of them). Fetch tasks without checking slot limits.
+         *
+         * Recompute concurrency limits from a fresh query here: if the miniqueue was non-empty when
+         * entering this call, $concurrencylimits was built from the stale cached class list. Any task
+         * class that arrived during the cache TTL would be absent from the whitelist and silently
+         * excluded. A fresh query ensures new classes are included.
          */
         if (empty(self::$miniqueue) && array_sum(array_column($runningtasks, 'running')) < $concurrencylimit) {
             self::$mode = self::ADHOC_TASK_QUEUE_MODE_FILLING;
+            $fillinglimits = [];
+            if ($checklimits) {
+                $fillinglimits = array_filter(
+                    array_map(
+                        fn($task) => $task->get_concurrency_limit(),
+                        self::get_unique_adhoc_task_classes($timestart, true)
+                    ),
+                    fn($limit) => $limit > 0
+                );
+            }
             self::$miniqueue = self::get_candidate_adhoc_tasks(
                 $timestart,
                 $cachedqueuesize,
                 false,
-                $concurrencylimits
+                $fillinglimits
             );
         }
 
@@ -920,6 +990,24 @@ class manager {
 
         $pertasksql = implode(" OR ", array_column($pertaskclauses, 'sql'));
         $pertaskparams = $pertaskclauses ? array_merge(...array_column($pertaskclauses, 'params')) : [];
+
+        /*
+         * The per-task clauses should act as per-class restrictions, not as a whitelist.
+         * Without this extra clause, any task class that is not in $pertasklimits (e.g. a
+         * class that arrived after the unique-class cache was populated) would be silently
+         * excluded. Adding OR (class NOT IN (...)) ensures classes with no custom limit
+         * pass through freely, subject only to $runmax.
+         */
+        if (!empty($pertaskclauses)) {
+            [$notinsql, $notinparams] = $DB->get_in_or_equal(
+                array_keys($pertasklimits),
+                SQL_PARAMS_NAMED,
+                'nolimit',
+                false
+            );
+            $pertasksql = "($pertasksql) OR (q.classname $notinsql)";
+            $pertaskparams = array_merge($pertaskparams, $notinparams);
+        }
 
         $params = ['timestart' => $timestart] +
                 ($runmax ? ['runmax' => $runmax] : []) +

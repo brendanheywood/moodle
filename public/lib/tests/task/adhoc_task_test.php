@@ -1167,4 +1167,198 @@ final class adhoc_task_test extends \advanced_testcase {
             'negative' => [-1],
         ];
     }
+
+    /**
+     * Test that get_unique_adhoc_task_classes returns one instance per class.
+     *
+     * @covers \core\task\manager::get_unique_adhoc_task_classes
+     */
+    public function test_get_unique_adhoc_task_classes_returns_one_per_class(): void {
+        $this->resetAfterTest();
+
+        $clock = $this->mock_clock_with_frozen();
+
+        // Queue three tasks: two of the same class, one of a different class.
+        manager::queue_adhoc_task(new adhoc_test_task());
+        manager::queue_adhoc_task(new adhoc_test_task());
+        manager::queue_adhoc_task(new adhoc_test2_task());
+
+        $result = manager::get_unique_adhoc_task_classes($clock->time() + 1);
+
+        $this->assertCount(2, $result, 'Should return one entry per unique class');
+        $classes = array_map('get_class', $result);
+        $this->assertContains(\core\task\adhoc_test_task::class, $classes);
+        $this->assertContains(\core\task\adhoc_test2_task::class, $classes);
+    }
+
+    /**
+     * Test that get_unique_adhoc_task_classes only includes tasks due before timestart.
+     *
+     * @covers \core\task\manager::get_unique_adhoc_task_classes
+     */
+    public function test_get_unique_adhoc_task_classes_respects_timestart(): void {
+        $this->resetAfterTest();
+
+        $clock = $this->mock_clock_with_frozen();
+        $now = $clock->time();
+
+        // Queue one task due now and one scheduled far in the future.
+        manager::queue_adhoc_task(new adhoc_test_task());
+
+        $futuretask = new adhoc_test2_task();
+        $futuretask->set_next_run_time($now + DAYSECS);
+        manager::queue_adhoc_task($futuretask);
+
+        // Only the task due now should appear.
+        $result = manager::get_unique_adhoc_task_classes($now + 1);
+        $this->assertCount(1, $result);
+        $this->assertInstanceOf(\core\task\adhoc_test_task::class, reset($result));
+    }
+
+    /**
+     * Test that get_unique_adhoc_task_classes caches results for 60 seconds.
+     *
+     * @covers \core\task\manager::get_unique_adhoc_task_classes
+     */
+    public function test_get_unique_adhoc_task_classes_caches_for_one_minute(): void {
+        $this->resetAfterTest();
+
+        $clock = $this->mock_clock_with_frozen();
+
+        manager::queue_adhoc_task(new adhoc_test_task());
+
+        $result1 = manager::get_unique_adhoc_task_classes($clock->time() + 1);
+        $this->assertCount(1, $result1);
+
+        // Queue a second class — but within the 60-second window the cache should hide it.
+        manager::queue_adhoc_task(new adhoc_test2_task());
+
+        $clock->bump(59);
+        $result2 = manager::get_unique_adhoc_task_classes($clock->time() + 1);
+        $this->assertCount(1, $result2, 'Cache should still be warm after 59 seconds');
+
+        // After 60 seconds the cache expires and the new task becomes visible.
+        $clock->bump(2);
+        $result3 = manager::get_unique_adhoc_task_classes($clock->time() + 1);
+        $this->assertCount(2, $result3, 'Cache should have expired after 61 seconds total');
+    }
+
+    /**
+     * Test that reset_state() invalidates the get_unique_adhoc_task_classes cache.
+     *
+     * @covers \core\task\manager::get_unique_adhoc_task_classes
+     */
+    public function test_get_unique_adhoc_task_classes_cache_cleared_by_reset_state(): void {
+        $this->resetAfterTest();
+
+        $clock = $this->mock_clock_with_frozen();
+
+        manager::queue_adhoc_task(new adhoc_test_task());
+
+        $result1 = manager::get_unique_adhoc_task_classes($clock->time() + 1);
+        $this->assertCount(1, $result1);
+
+        // Add a second task class and immediately reset state.
+        manager::queue_adhoc_task(new adhoc_test2_task());
+        manager::reset_state();
+
+        // Cache is gone — should see both classes immediately.
+        $result2 = manager::get_unique_adhoc_task_classes($clock->time() + 1);
+        $this->assertCount(2, $result2, 'reset_state() should have cleared the cache');
+    }
+
+    /**
+     * Test that a new task class queued within the cache TTL is still returned by get_next_adhoc_task.
+     *
+     * This test demonstrates a cache correctness issue: if the cache was primed when
+     * only one class was in the queue, a second class queued within the 60-second TTL
+     * should still be dispatchable. The stale unique-class count may cause incorrect
+     * concurrency slot distribution, and in the worst case the new task type may be
+     * filtered out entirely during the distributing phase.
+     *
+     * @covers \core\task\manager::get_unique_adhoc_task_classes
+     */
+    public function test_get_unique_adhoc_task_classes_cache_hides_new_task_class(): void {
+        $this->resetAfterTest();
+
+        $clock = $this->mock_clock_with_frozen();
+
+        // Prime the cache with one class already in the queue.
+        manager::queue_adhoc_task(new adhoc_test_task());
+        $task1 = manager::get_next_adhoc_task($clock->time() + 1);
+        manager::adhoc_task_complete($task1);
+        // Deliberately do NOT call reset_state() — the unique-class cache is now warm
+        // with only adhoc_test_task. The miniqueue is empty (task1 was dispatched).
+
+        // A new class of task arrives — still within the 60-second cache window.
+        $clock->bump(5);
+        manager::queue_adhoc_task(new adhoc_test2_task());
+
+        // The new task class should be dispatchable immediately even though the cached
+        // unique-class list does not include it yet.
+        $task2 = manager::get_next_adhoc_task($clock->time() + 1);
+        $this->assertInstanceOf(
+            adhoc_test2_task::class,
+            $task2,
+            'Newly queued task class should be returned by get_next_adhoc_task'
+        );
+        manager::adhoc_task_complete($task2);
+    }
+
+    /**
+     * Test a secondary edge case: when $miniqueue starts non-empty, $concurrencylimits
+     * is built from the stale cache. If the distributing-mode filter then empties the
+     * miniqueue, the filling-mode refill reuses those stale limits. A new task class
+     * that arrived in the meantime can be excluded for one iteration because it is not
+     * in the per-task whitelist used by get_candidate_adhoc_tasks.
+     *
+     * This only affects task classes with a custom concurrency limit > 0.
+     *
+     * @covers \core\task\manager::get_unique_adhoc_task_classes
+     */
+    public function test_get_next_adhoc_task_filling_mode_misses_new_class_with_stale_limits(): void {
+        global $CFG;
+
+        $this->resetAfterTest();
+
+        $clock = $this->mock_clock_with_frozen();
+        $now = $clock->time();
+
+        // Global concurrency limit of 2; adhoc_test_task has a per-class limit of 1.
+        set_config('task_adhoc_concurrency_limit', 2);
+        $CFG->task_concurrency_limit = [\core\task\adhoc_test_task::class => 1];
+
+        // Queue two adhoc_test_task instances.
+        manager::queue_adhoc_task(new adhoc_test_task());
+        manager::queue_adhoc_task(new adhoc_test_task());
+
+        // First call: primes the unique-class cache ([adhoc_test_task]) and fills miniqueue.
+        $task1 = manager::get_next_adhoc_task($now + 1);
+        $this->assertInstanceOf(adhoc_test_task::class, $task1);
+
+        // Mark task1 as running in the DB so it counts toward the per-class running total.
+        manager::adhoc_task_starting($task1);
+
+        // A new class arrives — still within the 60s cache window.
+        $clock->bump(5);
+        manager::queue_adhoc_task(new adhoc_test2_task());
+
+        // Second call:
+        // - miniqueue is non-empty (still has the second adhoc_test_task record)
+        // - $tasksforslots = stale cache [adhoc_test_task] → $concurrencylimits = [adhoc_test_task => 1]
+        // - distributing filter: adhoc_test_task has running=1 >= slots=1 → miniqueue empties
+        // - filling mode reuses stale $concurrencylimits with whitelist (adhoc_test_task only)
+        // - adhoc_test2_task is not in the whitelist → missed for this iteration.
+        $task2 = manager::get_next_adhoc_task($now + 6);
+        $this->assertNotNull($task2, 'A task should be available');
+        $this->assertInstanceOf(
+            adhoc_test2_task::class,
+            $task2,
+            'adhoc_test2_task should be dispatched as adhoc_test_task has exhausted its concurrency slot'
+        );
+
+        manager::adhoc_task_complete($task2);
+        manager::adhoc_task_complete($task1);
+    }
 }
+
