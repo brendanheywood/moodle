@@ -48,8 +48,26 @@ class hook_list_table extends flexible_table {
     /** @var stdClass[] The list of emitted hooks with metadata */
     protected array $emitters;
 
-    public function __construct() {
+    /** @var string Free-text search filter */
+    protected string $search = '';
+
+    /** @var string Component filter */
+    protected string $component = '';
+
+    /** @var int Number of rows after filtering */
+    public int $rowcount = 0;
+
+    /**
+     * Constructor.
+     *
+     * @param string $search    Free-text filter.
+     * @param string $component Component filter.
+     */
+    public function __construct(string $search = '', string $component = '') {
         global $CFG;
+
+        $this->search = $search;
+        $this->component = $component;
 
         $this->define_baseurl('/admin/hooks.php');
         parent::__construct('core_admin-hook_list_table');
@@ -114,6 +132,27 @@ class hook_list_table extends flexible_table {
         $allhooks = array_merge($corehooks, $allhooks);
 
         foreach ($allhooks as $classname => $consumers) {
+            // Apply component filter.
+            if ($this->component !== '') {
+                $hookcomponent = explode('\\', ltrim($classname, '\\'))[0];
+                if ($hookcomponent !== $this->component) {
+                    continue;
+                }
+            }
+
+            // Apply free-text search.
+            if ($this->search !== '') {
+                $lower = strtolower($classname);
+                $description = $this->emitters[$classname]['description'] ?? '';
+                if (
+                        strpos($lower, strtolower($this->search)) === false
+                        && stripos($description, $this->search) === false
+                ) {
+                    continue;
+                }
+            }
+
+            $this->rowcount++;
             $this->add_data_keyed(
                 $this->format_row((object) [
                     'classname' => $classname,
@@ -277,5 +316,36 @@ class hook_list_table extends flexible_table {
 
     protected function get_row_class(string $classname): string {
         return '';
+    }
+
+    /**
+     * Return a sorted list of unique hook components for the filter select.
+     *
+     * @return array component => display label
+     */
+    public function get_component_list(): array {
+        $hookmanager = \core\di::get(\core\hook\manager::class);
+        $allhooks = array_keys((array)$hookmanager->get_all_callbacks());
+        foreach (array_keys($this->emitters) as $classname) {
+            $allhooks[] = $classname;
+        }
+
+        $components = [];
+        $manager = get_string_manager();
+        foreach ($allhooks as $classname) {
+            $component = explode('\\', ltrim($classname, '\\'))[0];
+            if (!isset($components[$component])) {
+                if ($component === 'core') {
+                    $label = get_string('core', 'core_admin');
+                } else if ($manager->string_exists('pluginname', $component)) {
+                    $label = get_string('pluginname', $component) . ' (' . $component . ')';
+                } else {
+                    $label = $component;
+                }
+                $components[$component] = $label;
+            }
+        }
+        asort($components);
+        return $components;
     }
 }
