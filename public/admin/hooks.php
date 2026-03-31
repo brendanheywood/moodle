@@ -46,12 +46,6 @@ echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('hooksoverview', 'core_admin') . " ($hookcount)");
 
 echo html_writer::start_tag('ul', ['class' => 'nav nav-tabs mb-3']);
-echo html_writer::tag('li',
-    html_writer::link(new moodle_url('/report/eventlist/index.php'), get_string('pluginname', 'report_eventlist'), ['class' => 'nav-link']),
-    ['class' => 'nav-item']);
-echo html_writer::tag('li',
-    html_writer::link(new moodle_url('/admin/hooks.php'), get_string('hooksoverview', 'core_admin'), ['class' => 'nav-link active', 'aria-current' => 'page']),
-    ['class' => 'nav-item']);
 echo html_writer::tag(
     'li',
     html_writer::link(
@@ -79,7 +73,6 @@ echo html_writer::tag(
     ),
     ['class' => 'nav-item']
 );
->>>>>>> 4d397a013bc (hooks)
 echo html_writer::end_tag('ul');
 
 $filterurl = new moodle_url('/admin/hooks.php');

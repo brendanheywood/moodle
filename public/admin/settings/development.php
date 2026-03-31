@@ -128,4 +128,10 @@ if ($hassiteconfig) { // Speedup for non-admins, add all caps used on this page.
 
     $ADMIN->add('development', new admin_externalpage('hooksoverview',
         new lang_string('hooksoverview', 'admin'), "$CFG->wwwroot/$CFG->admin/hooks.php"));
+
+    $ADMIN->add('development', new admin_externalpage(
+        'callbacksoverview',
+        new lang_string('callbacksoverview', 'admin'),
+        "$CFG->wwwroot/$CFG->admin/callbacks.php"
+    ));
 } // end of speedup

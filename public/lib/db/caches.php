@@ -632,4 +632,11 @@ $definitions = array(
         'simpledata' => true,
         'ttl' => 1800,
     ],
+
+    // Stores the result of the legacy callback static-analysis scan for the callbacks overview page.
+    'callback_scan' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'ttl' => 3600,
+    ],
 );
