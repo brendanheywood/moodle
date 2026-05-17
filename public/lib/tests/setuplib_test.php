@@ -559,4 +559,73 @@ final class setuplib_test extends \advanced_testcase {
         // And a vendor path.
         $this->assertStringContainsString(' of /vendor/', $output);
     }
+
+    /**
+     * Data provider for test_should_vary_by_accept_language
+     *
+     * @return array
+     */
+    public static function should_vary_by_accept_language_provider(): array {
+        return [
+            'Single language installed' => [
+                'translations' => ['en' => 'English (en)'],
+                'script' => 'index.php',
+                'expected' => false,
+            ],
+            'Two languages installed' => [
+                'translations' => ['en' => 'English (en)', 'fr' => 'French (fr)'],
+                'script' => 'index.php',
+                'expected' => true,
+            ],
+            'Three languages installed' => [
+                'translations' => ['en' => 'English (en)', 'fr' => 'French (fr)', 'de' => 'German (de)'],
+                'script' => 'index.php',
+                'expected' => true,
+            ],
+            'Multi-lang but pluginfile.php' => [
+                'translations' => ['en' => 'English (en)', 'fr' => 'French (fr)'],
+                'script' => 'pluginfile.php',
+                'expected' => false,
+            ],
+            'Multi-lang but draftfile.php' => [
+                'translations' => ['en' => 'English (en)', 'fr' => 'French (fr)'],
+                'script' => 'draftfile.php',
+                'expected' => false,
+            ],
+            'Multi-lang but tokenpluginfile.php' => [
+                'translations' => ['en' => 'English (en)', 'fr' => 'French (fr)'],
+                'script' => 'tokenpluginfile.php',
+                'expected' => false,
+            ],
+            'Multi-lang but file.php' => [
+                'translations' => ['en' => 'English (en)', 'fr' => 'French (fr)'],
+                'script' => 'file.php',
+                'expected' => false,
+            ],
+        ];
+    }
+
+    /**
+     * Tests that should_vary_by_accept_language returns true only when more than one language pack is installed
+     * and the request is not for a binary file-serving endpoint.
+     *
+     * @covers ::should_vary_by_accept_language
+     * @dataProvider should_vary_by_accept_language_provider
+     * @param string[] $translations the installed translations to simulate
+     * @param string $script the script filename to simulate
+     * @param bool $expected whether Vary: Accept-Language should be sent
+     */
+    public function test_should_vary_by_accept_language(array $translations, string $script, bool $expected): void {
+        global $SCRIPT;
+        $this->resetAfterTest();
+        testable_string_manager_for_current_language_tests::set_fake_list_of_installed_languages($translations);
+
+        $originalscript = $SCRIPT;
+        $SCRIPT = '/moodle/' . $script;
+
+        $this->assertEquals($expected, should_vary_by_accept_language());
+
+        $SCRIPT = $originalscript;
+        testable_string_manager_for_current_language_tests::reset_installed_languages_override();
+    }
 }
