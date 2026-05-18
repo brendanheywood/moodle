@@ -3938,7 +3938,10 @@ function authenticate_user_login(
         }
 
         // Before performing login actions, check if user still passes password policy, if admin setting is enabled.
-        if (!empty($CFG->passwordpolicycheckonlogin)) {
+        // Skipped when $ignorelockout is true, which signals an SSO or external auth flow where the password
+        // passed to this function is not the user's real credential (e.g. a session key, empty string, or
+        // randomly generated value). In those cases running a policy check against a fake password is meaningless.
+        if (!empty($CFG->passwordpolicycheckonlogin) && !$ignorelockout) {
             $errmsg = '';
             $passed = check_password_policy($password, $errmsg, $user);
             if (!$passed) {
