@@ -439,6 +439,52 @@ final class authlib_test extends \advanced_testcase {
         unset($CFG->enableloginrecaptcha);
     }
 
+    /**
+     * Test that the password policy check is skipped when $ignorelockout is true.
+     *
+     * SSO and external auth callers pass $ignorelockout = true to signal that the password
+     * argument is not the user's real credential. In that case the policy check is meaningless
+     * and must be skipped, regardless of the auth plugin type.
+     *
+     * @covers ::authenticate_user_login
+     */
+    public function test_authenticate_user_login_ignorelockout_skips_policy_check(): void {
+        global $CFG;
+
+        $this->resetAfterTest();
+
+        // Create a user whose password is too weak to pass the policy.
+        $this->getDataGenerator()->create_user([
+            'username' => 'ssouser',
+            'password' => 'a',
+        ]);
+
+        // Enable password policy and policy-check-on-login.
+        $CFG->passwordpolicy = 1;
+        $CFG->passwordpolicycheckonlogin = 1;
+
+        // With $ignorelockout = true the policy check must be skipped entirely.
+        $reason = null;
+        $sink = $this->redirectEvents();
+        $result = authenticate_user_login('ssouser', 'a', true, $reason);
+        $events = $sink->get_events();
+        $sink->close();
+
+        // Login should succeed.
+        $this->assertInstanceOf('stdClass', $result);
+        $this->assertEquals(AUTH_LOGIN_OK, $reason);
+
+        // No password policy failure event should be fired.
+        $policyevents = array_filter($events, function($e) {
+            return $e->eventname === '\core\event\user_password_policy_failed';
+        });
+        $this->assertEmpty($policyevents, 'No password policy event should fire when $ignorelockout = true');
+
+        // No notification should be shown to the user.
+        $notifications = \core\notification::fetch();
+        $this->assertEmpty($notifications, 'No notification should be shown when $ignorelockout = true');
+    }
+
     public function test_user_loggedin_event_exceptions(): void {
         try {
             $event = \core\event\user_loggedin::create(array('objectid' => 1));
