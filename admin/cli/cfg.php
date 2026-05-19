@@ -48,6 +48,7 @@ Options:
     --set=<value>               Set the given variable to this value.
     --unset                     Unset the given variable.
     --shell-arg                 Escape output values so that they can be directly used as shell script arguments.
+    --silent                    This sets the config without adding to the config log.
     --json                      Encode output list of values using JSON notation.
     --no-eol                    Do not include the trailing new line character when printing the value.
 
@@ -97,6 +98,7 @@ list($options, $unrecognised) = cli_get_params([
     'set' => null,
     'unset' => false,
     'shell-arg' => false,
+    'silent' => false,
     'json' => false,
     'no-eol' => false,
 ], [
@@ -138,7 +140,9 @@ if ($options['unset'] || $options['set'] !== null) {
     $old = get_config($options['component'], $options['name']);
     if ($new !== $old) {
         set_config($options['name'], $options['set'], $options['component']);
-        add_to_config_log($options['name'], $old, $new, $options['component']);
+        if (empty($options['silent'])) {
+            add_to_config_log($options['name'], $old, $new, $options['component']);
+        }
     }
     exit(0);
 }
