@@ -735,12 +735,12 @@ class manager {
 
             // Parse encoding.
             $encoding = array_search(
-                needle: strtoupper($partstructure[5]),
+                needle: strtoupper($partstructure[5] ?? ''),
                 haystack: utils::get_body_encoding(),
             );
 
             // Parse subtype.
-            $subtype = strtoupper($partstructure[1]);
+            $subtype = strtoupper($partstructure[1] ?? '');
 
             // Section part may be encoded, even plain text messages, so check everything.
             if ($encoding == utils::ENCQUOTEDPRINTABLE) {
@@ -752,8 +752,10 @@ class manager {
             }
 
             // Parse parameters.
+            // Some IMAP servers,eg Microsoft Exchange 2010 and Mail.ru return NIL
+            // instead of an empty parameter list.
             $parameters = $this->process_message_body_structure_parameters(
-                attributes: $partstructure[2],
+                attributes: is_array($partstructure[2]) ? $partstructure[2] : [],
                 parameters: $parameters,
             );
 
@@ -776,14 +778,14 @@ class manager {
             if ($subtype == 'PLAIN') {
                 $contentplain = $this->process_message_part_body(
                     bodycontent: $data,
-                    charset: $parameters['CHARSET'],
+                    charset: $parameters['CHARSET'] ?? 'UTF-8',
                 );
             }
             // HTML.
             if ($subtype == 'HTML') {
                 $contenthtml = $this->process_message_part_body(
                     bodycontent: $data,
-                    charset: $parameters['CHARSET'],
+                    charset: $parameters['CHARSET'] ?? 'UTF-8',
                 );
             }
             // ATTACHMENT.
