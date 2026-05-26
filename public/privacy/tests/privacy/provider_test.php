@@ -164,14 +164,63 @@ final class provider_test extends \core\tests\plugin_checks_testcase {
     }
 
     /**
-     * Test that all providers implement some form of compliant provider.
+     * Returns the component list filtered to core (standard) components only.
+     *
+     * @return array
+     */
+    public static function get_core_component_list(): array {
+        $pluginmanager = \core_plugin_manager::instance();
+        return array_filter(self::get_component_list(), function ($component) use ($pluginmanager): bool {
+            $name = $component['component'];
+            if ($name === 'core' || str_starts_with($name, 'core_')) {
+                return true;
+            }
+            $info = $pluginmanager->get_plugin_info($name);
+            return $info !== null && $info->is_standard();
+        });
+    }
+
+    /**
+     * Returns the component list filtered to third-party (non-standard) plugins only.
+     *
+     * @return array
+     */
+    public static function get_thirdparty_component_list(): array {
+        $pluginmanager = \core_plugin_manager::instance();
+        return array_filter(self::get_component_list(), function ($component) use ($pluginmanager): bool {
+            $name = $component['component'];
+            if ($name === 'core' || str_starts_with($name, 'core_')) {
+                return false;
+            }
+            $info = $pluginmanager->get_plugin_info($name);
+            return $info !== null && !$info->is_standard();
+        });
+    }
+
+    /**
+     * Test that all core providers implement some form of compliant provider.
      *
      * @group        plugin_checks
-     * @dataProvider get_component_list
+     * @dataProvider get_core_component_list
+     * @coversNothing
      * @param string $component frankenstyle component name, e.g. 'mod_assign'
      * @param string $classname the fully qualified provider classname
      */
-    public function test_all_providers_compliant($component, $classname): void {
+    public function test_core_providers_compliant($component, $classname): void {
+        $manager = new manager();
+        $this->assertTrue($manager->component_is_compliant($component));
+    }
+
+    /**
+     * Test that all third-party providers implement some form of compliant provider.
+     *
+     * @group        plugin_checks
+     * @dataProvider get_thirdparty_component_list
+     * @coversNothing
+     * @param string $component frankenstyle component name, e.g. 'mod_assign'
+     * @param string $classname the fully qualified provider classname
+     */
+    public function test_thirdparty_providers_compliant($component, $classname): void {
         $manager = new manager();
         $this->assertTrue($manager->component_is_compliant($component));
     }
