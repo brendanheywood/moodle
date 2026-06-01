@@ -92,7 +92,19 @@ function sendOAuthBodyPOST($method, $endpoint, $oauth_consumer_key, $oauth_consu
 
     $curl = new curl();
     $curl->setHeader($headers);
-    $response =  $curl->post($endpoint, $body);
+    $curl->setopt(['CURLOPT_TIMEOUT' => 30]);
+    $response = $curl->post($endpoint, $body);
+
+    $errno = $curl->get_errno();
+    if ($errno) {
+        throw new \moodle_exception('failedrequest', 'enrol_lti', '', (object)['reason' => "curl errno $errno on $endpoint: $response"]);
+    }
+
+    $info = $curl->get_info();
+    $httpcode = $info['http_code'] ?? 0;
+    if ($httpcode < 200 || $httpcode >= 300) {
+        throw new \moodle_exception('failedrequest', 'enrol_lti', '', (object)['reason' => "HTTP $httpcode from $endpoint: $response"]);
+    }
 
     return $response;
 }
@@ -129,7 +141,8 @@ function sendOAuthParamsPOST($method, $endpoint, $oauth_consumer_key, $oauth_con
     $params = array('http' => array(
         'method' => 'POST',
         'content' => $body,
-    'header' => $header
+        'header' => $header,
+        'timeout' => 30,
         ));
     $ctx = stream_context_create($params);
     $fp = @fopen($endpoint, 'rb', false, $ctx);
