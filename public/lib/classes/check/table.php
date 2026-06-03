@@ -82,6 +82,47 @@ class table implements \core\output\renderable {
     }
 
     /**
+     * Render a summary bar showing a count box per status for all results in the table.
+     *
+     * Only statuses with at least one result are shown, ordered by severity.
+     *
+     * @param \renderer_base $output renderer to use for the template
+     * @param array $counts associative array of status string => integer count
+     * @return string html output
+     */
+    protected function render_summary_bar(\renderer_base $output, array $counts): string {
+        // Severity-ordered list with Bootstrap classes matching the check result badge templates.
+        $statuses = [
+            result::CRITICAL => ['bg-danger', 'text-white'],
+            result::ERROR    => ['bg-danger', 'text-white'],
+            result::WARNING  => ['bg-warning', 'text-dark'],
+            result::UNKNOWN  => ['bg-secondary', 'text-white'],
+            result::OK       => ['bg-success', 'text-white'],
+            result::INFO     => ['bg-info', 'text-white'],
+            result::NA       => ['bg-secondary', 'text-dark'],
+        ];
+
+        $items = [];
+        foreach ($statuses as $status => [$bgcolor, $textcolor]) {
+            if (empty($counts[$status])) {
+                continue;
+            }
+            $items[] = [
+                'count'     => $counts[$status],
+                'label'     => get_string('status' . $status),
+                'bgcolor'   => $bgcolor,
+                'textcolor' => $textcolor,
+            ];
+        }
+
+        if (empty($items)) {
+            return '';
+        }
+
+        return $output->render_from_template('core/check/summary_bar', ['items' => $items]);
+    }
+
+    /**
      * Render a table of checks
      *
      * @param \core\output\renderer $output to use
@@ -111,6 +152,7 @@ class table implements \core\output\renderable {
         $table->attributes = ['class' => 'admintable ' . $this->type . 'report table generaltable'];
 
         $fails = [];
+        $statuscounts = [];
         foreach ($this->checks as $check) {
             $ref = $check->get_ref();
 
@@ -122,7 +164,9 @@ class table implements \core\output\renderable {
 
             foreach ($results as $result) {
                 $row = [];
-                if ($result->get_status() !== result::OK) {
+                $status = $result->get_status();
+                $statuscounts[$status] = ($statuscounts[$status] ?? 0) + 1;
+                if ($status !== result::OK) {
                     $fails[] = $result;
                 }
                 $row[] = $output->check_result($result);
@@ -146,6 +190,9 @@ class table implements \core\output\renderable {
 
                 $table->data[] = $row;
             }
+        }
+        if (empty($this->checkname)) {
+            $html .= $this->render_summary_bar($output, $statuscounts);
         }
         $html .= \html_writer::table($table);
 
