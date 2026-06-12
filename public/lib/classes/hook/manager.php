@@ -716,18 +716,32 @@ final class manager implements
     protected function get_cache(): ?array {
         $hookcallbacklocalfile = $this->get_local_cache_path();
         $hookcallbacksharedfile = $this->get_shared_cache_path();
-        if (!is_readable($hookcallbacklocalfile) && is_readable($hookcallbacksharedfile)) {
-            // If we don't have a local cache but do have a shared cache then clone it,
-            // for example when scaling up new front ends.
-            $tmppath = $hookcallbacklocalfile . '.' . uniqid('tmp', true);
-            copy($hookcallbacksharedfile, $tmppath);
-            rename($tmppath, $hookcallbacklocalfile);
-            clearstatcache(true, $hookcallbacklocalfile);
+
+        $serialized = @include($hookcallbacklocalfile);
+        if ($serialized !== false) {
+            $result = unserialize($serialized, ['allowed_classes' => false]);
+            if (is_array($result)) {
+                return $result;
+            }
         }
-        if (is_readable($hookcallbacklocalfile)) {
-            return json_decode(file_get_contents($hookcallbacklocalfile), true) ?? null;
+
+        // No local cache — try cloning from shared, e.g. when scaling up new front ends.
+        $serialized = @include($hookcallbacksharedfile);
+        if ($serialized === false) {
+            return null;
         }
-        return null;
+
+        $result = unserialize($serialized, ['allowed_classes' => false]);
+        if (!is_array($result)) {
+            return null;
+        }
+
+        $tmppath = $hookcallbacklocalfile . '.' . uniqid('tmp', true);
+        copy($hookcallbacksharedfile, $tmppath);
+        rename($tmppath, $hookcallbacklocalfile);
+        clearstatcache(true, $hookcallbacklocalfile);
+
+        return $result;
     }
 
     /**
@@ -753,17 +767,19 @@ final class manager implements
 
         // Create the local cache first, in case the shared cache is not
         // working then each local cache still works independently.
+        $cachecontents = '<?php return ' . var_export(serialize($cachedata), true) . ';';
+
         $hookcallbacklocalfile = $this->get_local_cache_path();
         make_localcache_directory('', true);
         $tmppath = $hookcallbacklocalfile . '.' . uniqid('tmp', true);
-        file_put_contents($tmppath, json_encode($cachedata));
+        file_put_contents($tmppath, $cachecontents);
         rename($tmppath, $hookcallbacklocalfile);
         clearstatcache(true, $hookcallbacklocalfile);
 
         // Create the shared backup cache.
         $hookcallbacksharedfile = $this->get_shared_cache_path();
         $tmppath = $hookcallbacksharedfile . '.' . uniqid('tmp', true);
-        file_put_contents($tmppath, json_encode($cachedata));
+        file_put_contents($tmppath, $cachecontents);
         rename($tmppath, $hookcallbacksharedfile);
         clearstatcache(true, $hookcallbacksharedfile);
     }

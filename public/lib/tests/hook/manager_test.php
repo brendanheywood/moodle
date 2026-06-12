@@ -590,10 +590,10 @@ final class manager_test extends \advanced_testcase {
         @unlink($sharedpath);
 
         if ($localdata !== null) {
-            file_put_contents($localpath, json_encode($localdata));
+            file_put_contents($localpath, '<?php return ' . var_export(serialize($localdata), true) . ';');
         }
         if ($shareddata !== null) {
-            file_put_contents($sharedpath, json_encode($shareddata));
+            file_put_contents($sharedpath, '<?php return ' . var_export(serialize($shareddata), true) . ';');
         }
 
         $result = $this->call_protected_method($manager, 'get_cache');
@@ -626,8 +626,8 @@ final class manager_test extends \advanced_testcase {
         $expected = ['callbacks' => $callbacks, 'deprecations' => $deprecations, 'overrideshash' => $hash];
         $this->assertFileExists($sharedpath);
         $this->assertFileExists($localpath);
-        $this->assertEquals($expected, json_decode(file_get_contents($sharedpath), true));
-        $this->assertEquals($expected, json_decode(file_get_contents($localpath), true));
+        $this->assertEquals($expected, unserialize(include($sharedpath), ['allowed_classes' => false]));
+        $this->assertEquals($expected, unserialize(include($localpath), ['allowed_classes' => false]));
 
         // Verify get_cache reads it back correctly.
         $this->assertEquals($expected, $this->call_protected_method($manager, 'get_cache'));
