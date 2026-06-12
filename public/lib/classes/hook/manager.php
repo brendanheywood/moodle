@@ -709,25 +709,47 @@ final class manager implements
     }
 
     /**
-     * Fetch and decode the hook cache.
+     * Read a cache file via include so that it is held in opcache.
+     *
+     * @param string $path
+     * @return array|null null if the file is missing, invalid or in an unexpected format.
+     */
+    private function read_cache_file(string $path): ?array {
+        // Discard any output, in case the file is not a valid cache file.
+        ob_start();
+        try {
+            $result = @include($path);
+        } catch (\Throwable) {
+            $result = false;
+        } finally {
+            ob_end_clean();
+        }
+        return is_array($result) ? $result : null;
+    }
+
+    /**
+     * Fetch the hook cache, preferring the local copy and falling back to the shared copy.
      *
      * @return array|null
      */
     protected function get_cache(): ?array {
         $hookcallbacklocalfile = $this->get_local_cache_path();
         $hookcallbacksharedfile = $this->get_shared_cache_path();
-        if (!is_readable($hookcallbacklocalfile) && is_readable($hookcallbacksharedfile)) {
-            // If we don't have a local cache but do have a shared cache then clone it,
-            // for example when scaling up new front ends.
-            $tmppath = $hookcallbacklocalfile . '.' . uniqid('tmp', true);
-            copy($hookcallbacksharedfile, $tmppath);
-            rename($tmppath, $hookcallbacklocalfile);
-            clearstatcache(true, $hookcallbacklocalfile);
+
+        $result = $this->read_cache_file($hookcallbacklocalfile);
+        if ($result !== null) {
+            return $result;
         }
-        if (is_readable($hookcallbacklocalfile)) {
-            return json_decode(file_get_contents($hookcallbacklocalfile), true) ?? null;
+
+        // No local cache — try cloning from shared, e.g. when scaling up new front ends.
+        $result = $this->read_cache_file($hookcallbacksharedfile);
+        if ($result === null) {
+            return null;
         }
-        return null;
+
+        $this->write_cache_file($hookcallbacklocalfile, $this->get_cache_file_contents($result));
+
+        return $result;
     }
 
     /**
@@ -751,20 +773,45 @@ final class manager implements
         // Write to a temp file and rename it to ensure atomicity of reads.
         // If we write directly to the cache file, another process may read it during the write and get corrupted data.
 
+        $cachecontents = $this->get_cache_file_contents($cachedata);
+
         // Create the local cache first, in case the shared cache is not
         // working then each local cache still works independently.
-        $hookcallbacklocalfile = $this->get_local_cache_path();
         make_localcache_directory('', true);
-        $tmppath = $hookcallbacklocalfile . '.' . uniqid('tmp', true);
-        file_put_contents($tmppath, json_encode($cachedata));
-        rename($tmppath, $hookcallbacklocalfile);
-        clearstatcache(true, $hookcallbacklocalfile);
+        $this->write_cache_file($this->get_local_cache_path(), $cachecontents);
 
         // Create the shared backup cache.
-        $hookcallbacksharedfile = $this->get_shared_cache_path();
-        $tmppath = $hookcallbacksharedfile . '.' . uniqid('tmp', true);
-        file_put_contents($tmppath, json_encode($cachedata));
-        rename($tmppath, $hookcallbacksharedfile);
-        clearstatcache(true, $hookcallbacksharedfile);
+        $this->write_cache_file($this->get_shared_cache_path(), $cachecontents);
+    }
+
+    /**
+     * Get the PHP file contents used to store cache data.
+     *
+     * @param array $cachedata
+     * @return string
+     */
+    private function get_cache_file_contents(array $cachedata): string {
+        return '<?php return ' . var_export($cachedata, true) . ';';
+    }
+
+    /**
+     * Atomically write a cache file and invalidate any opcache copy.
+     *
+     * @param string $path
+     * @param string $contents
+     * @return bool whether the file was written
+     */
+    private function write_cache_file(string $path, string $contents): bool {
+        $tmppath = $path . '.' . uniqid('tmp', true);
+        if (@file_put_contents($tmppath, $contents) === false) {
+            return false;
+        }
+        if (!@rename($tmppath, $path)) {
+            @unlink($tmppath);
+            return false;
+        }
+        clearstatcache(true, $path);
+        \core_component::invalidate_opcode_php_cache($path);
+        return true;
     }
 }
