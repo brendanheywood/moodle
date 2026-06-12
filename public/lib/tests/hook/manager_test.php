@@ -590,10 +590,12 @@ final class manager_test extends \advanced_testcase {
         @unlink($sharedpath);
 
         if ($localdata !== null) {
-            file_put_contents($localpath, json_encode($localdata));
+            file_put_contents($localpath, '<?php return ' . var_export($localdata, true) . ';');
+            \core_component::invalidate_opcode_php_cache($localpath);
         }
         if ($shareddata !== null) {
-            file_put_contents($sharedpath, json_encode($shareddata));
+            file_put_contents($sharedpath, '<?php return ' . var_export($shareddata, true) . ';');
+            \core_component::invalidate_opcode_php_cache($sharedpath);
         }
 
         $result = $this->call_protected_method($manager, 'get_cache');
@@ -603,6 +605,25 @@ final class manager_test extends \advanced_testcase {
 
         @unlink($localpath);
         @unlink($sharedpath);
+    }
+
+    /**
+     * Test that a cache file which is not a valid PHP cache, such as legacy JSON, is ignored silently.
+     */
+    public function test_get_cache_ignores_invalid_file(): void {
+        $this->resetAfterTest();
+        $manager = $this->create_manager_for_cache_tests();
+
+        $localpath = $this->call_protected_method($manager, 'get_local_cache_path');
+        $sharedpath = $this->call_protected_method($manager, 'get_shared_cache_path');
+        @unlink($sharedpath);
+        file_put_contents($localpath, json_encode(['callbacks' => []]));
+        \core_component::invalidate_opcode_php_cache($localpath);
+
+        $this->expectOutputString('');
+        $this->assertNull($this->call_protected_method($manager, 'get_cache'));
+
+        unlink($localpath);
     }
 
     /**
@@ -626,8 +647,8 @@ final class manager_test extends \advanced_testcase {
         $expected = ['callbacks' => $callbacks, 'deprecations' => $deprecations, 'overrideshash' => $hash];
         $this->assertFileExists($sharedpath);
         $this->assertFileExists($localpath);
-        $this->assertEquals($expected, json_decode(file_get_contents($sharedpath), true));
-        $this->assertEquals($expected, json_decode(file_get_contents($localpath), true));
+        $this->assertEquals($expected, include($sharedpath));
+        $this->assertEquals($expected, include($localpath));
 
         // Verify get_cache reads it back correctly.
         $this->assertEquals($expected, $this->call_protected_method($manager, 'get_cache'));
