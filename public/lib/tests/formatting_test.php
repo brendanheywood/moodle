@@ -712,4 +712,38 @@ final class formatting_test extends \advanced_testcase {
             ],
         ];
     }
+
+    /**
+     * Test format_number wraps format_float with locale-aware thousands separator support.
+     *
+     * @covers ::format_number
+     */
+    public function test_format_number(): void {
+        $this->resetAfterTest();
+
+        $formatting = new formatting();
+
+        // Null returns empty string.
+        $this->assertEquals('', $formatting->format_number(null));
+
+        // Default 0 decimal places.
+        $this->assertEquals('5', $formatting->format_number(5.43));
+        $this->assertEquals('5', $formatting->format_number(5.0));
+
+        // Custom decimal places, localized=false (no thousands separator).
+        $this->assertEquals('5.43000', $formatting->format_number(5.43, 5, false));
+        $this->assertEquals('1234567.89', $formatting->format_number(1234567.89, 2, false));
+
+        // Localized=true uses English ',' as thousands separator by default.
+        $this->assertEquals('1,234,567.89', $formatting->format_number(1234567.89, 2));
+        $this->assertEquals('1,000', $formatting->format_number(1000.0, 0));
+
+        // Strip trailing zeros.
+        $this->assertEquals('5.43', $formatting->format_number(5.43, 5, false, true));
+        $this->assertEquals('5', $formatting->format_number(5.0, 3, false, true));
+
+        // Auto-detect decimal places.
+        $this->assertEquals('5.43', $formatting->format_number(5.43, -1, false));
+        $this->assertEquals('5', $formatting->format_number(5.0, -1, false));
+    }
 }
