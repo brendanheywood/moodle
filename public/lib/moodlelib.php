@@ -8158,7 +8158,7 @@ function generate_password($maxlen=10) {
  *
  * @param float $float The float to print
  * @param int $decimalpoints The number of decimal places to print. -1 is a special value for auto detect (full precision).
- * @param bool $localized use localized decimal separator
+ * @param bool $localized use localized decimal and thousands separators
  * @param bool $stripzeros If true, removes final zeros after decimal point. It will be ignored and the trailing zeros after
  *                         the decimal point are always striped if $decimalpoints is -1.
  * @return string locale float
@@ -8169,8 +8169,10 @@ function format_float($float, $decimalpoints=1, $localized=true, $stripzeros=fal
     }
     if ($localized) {
         $separator = get_string('decsep', 'langconfig');
+        $thousandssep = get_string('thousandssep', 'langconfig');
     } else {
         $separator = '.';
+        $thousandssep = '';
     }
     if ($decimalpoints == -1) {
         // The following counts the number of decimals.
@@ -8179,7 +8181,7 @@ function format_float($float, $decimalpoints=1, $localized=true, $stripzeros=fal
         for ($decimalpoints = 0; $floatval != round($float, $decimalpoints); $decimalpoints++);
     }
 
-    $result = number_format($float, $decimalpoints, $separator, '');
+    $result = number_format($float, $decimalpoints, $separator, $thousandssep);
     if ($stripzeros && $decimalpoints > 0) {
         // Remove zeros and final dot if not needed.
         // However, only do this if there is a decimal point!
@@ -8204,6 +8206,7 @@ function unformat_float($localefloat, $strict = false) {
     }
 
     $localefloat = str_replace(' ', '', $localefloat); // No spaces - those might be used as thousand separators.
+    $localefloat = str_replace(get_string('thousandssep', 'langconfig'), '', $localefloat);
     $localefloat = str_replace(get_string('decsep', 'langconfig'), '.', $localefloat);
 
     if ($strict && !is_numeric($localefloat)) {

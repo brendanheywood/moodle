@@ -58,6 +58,27 @@ final class moodlelib_test extends \advanced_testcase {
         $stringmanager->reset_caches(true);
     }
 
+    /**
+     * Sets a custom decimal and thousands separator for testing by writing a temporary langconfig.php
+     * for the 'xx' test language and switching the session to use it.
+     *
+     * @param string $decsep Decimal separator character. Defaults to 'X'.
+     * @param string $thousandssep Thousands separator character. Defaults to '|'.
+     */
+    protected function define_local_separators(string $decsep = 'X', string $thousandssep = '|'): void {
+        global $SESSION, $CFG;
+
+        $SESSION->lang = 'xx';
+        $langconfig = "<?php\n\$string['decsep'] = '$decsep';\n\$string['thousandssep'] = '$thousandssep';";
+        $langfolder = $CFG->dataroot . '/lang/xx';
+        check_dir_exists($langfolder);
+        file_put_contents($langfolder . '/langconfig.php', $langconfig);
+
+        // Ensure the new value is picked up and not taken from the cache.
+        $stringmanager = get_string_manager();
+        $stringmanager->reset_caches(true);
+    }
+
     public function test_cleanremoteaddr(): void {
         // IPv4.
         $this->assertNull(cleanremoteaddr('1023.121.234.1'));
@@ -2230,6 +2251,27 @@ EOF;
         $this->assertEquals('5', format_float(5.0001, 3, true, true));
         $this->assertEquals('5~43000', format_float(5.43, 5));
         $this->assertEquals('5~43', format_float(5.43, 5, true, true));
+
+        // Tests with thousands separator (English default is ',').
+        $this->assertEquals('1,234,567.89', format_float(1234567.89, 2));
+        $this->assertEquals('1,000.00', format_float(1000.0, 2));
+        $this->assertEquals('1,000,000', format_float(1000000, 0));
+
+        // Localized=false always suppresses thousands separator regardless of locale.
+        $this->assertEquals('1234567.89', format_float(1234567.89, 2, false));
+        $this->assertEquals('1000.00', format_float(1000.0, 2, false));
+
+        // Custom locale with custom decimal and thousands separators.
+        $this->define_local_separators('X', '|');
+        $this->assertEquals('1|234|567X89', format_float(1234567.89, 2));
+        $this->assertEquals('1|000X00', format_float(1000.0, 2));
+        // Localized=false with custom locale: dot decimal, no thousands separator.
+        $this->assertEquals('1234567.89', format_float(1234567.89, 2, false));
+
+        // Empty thousands separator means no grouping.
+        $this->define_local_separators('X', '');
+        $this->assertEquals('1234567X89', format_float(1234567.89, 2));
+        $this->assertEquals('1000X00', format_float(1000.0, 2));
     }
 
     /**
@@ -2304,6 +2346,28 @@ EOF;
         $this->assertEquals (-1023.862567, unformat_float('   -1 023X862567     '));
         // Combining options in strict mode.
         $this->assertEquals (-1023.862567, unformat_float('   -1 023X862567     ', true));
+
+        // Tests with locale thousands separator (English default: ',').
+        $this->assertEquals(1234567.89, unformat_float('1,234,567.89'));
+        $this->assertEquals(1000.0, unformat_float('1,000'));
+        $this->assertEquals(1000.32, unformat_float('1,000.32'));
+        $this->assertEquals(-1234567.89, unformat_float('-1,234,567.89'));
+
+        // Round-trip: format then unformat returns the original value.
+        $this->assertEquals(1234567.89, unformat_float(format_float(1234567.89, 2)));
+
+        // Custom locale with custom thousands separator.
+        $this->define_local_separators('X', '|');
+        $this->assertEquals(1234567.89, unformat_float('1|234|567X89'));
+        $this->assertEquals(1000.0, unformat_float('1|000'));
+        $this->assertEquals(-1234567.89, unformat_float('-1|234|567X89'));
+
+        // Round-trip with custom locale.
+        $this->assertEquals(1234567.89, unformat_float(format_float(1234567.89, 2)));
+
+        // Empty thousands separator locale: plain number still parses correctly.
+        $this->define_local_separators('X', '');
+        $this->assertEquals(1234567.89, unformat_float('1234567X89'));
     }
 
     /**

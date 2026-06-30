@@ -448,4 +448,22 @@ class formatting {
 
         return true;
     }
+
+    /**
+     * Formats a float for display, using locale-aware decimal and thousands separators when localized.
+     *
+     * @param float|null $float The number to format
+     * @param int $decimalpoints The number of decimal places. -1 for auto-detect (full precision).
+     * @param bool $localized Use localized decimal and thousands separators
+     * @param bool $stripzeros If true, removes trailing zeros after the decimal point
+     * @return string The formatted number
+     */
+    public function format_number(
+        ?float $float,
+        int $decimalpoints = 0,
+        bool $localized = true,
+        bool $stripzeros = false,
+    ): string {
+        return format_float($float, $decimalpoints, $localized, $stripzeros);
+    }
 }
