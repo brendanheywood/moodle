@@ -8934,6 +8934,8 @@ function array_is_nested($array) {
 function get_performance_info() {
     global $CFG, $PERF, $DB, $PAGE;
 
+    $formatting = \core\di::get(\core\formatting::class);
+
     $info = array();
     $info['txt']  = me() . ' '; // Holds log-friendly representation.
 
@@ -8946,8 +8948,8 @@ function get_performance_info() {
 
     $info['realtime'] = microtime_diff($PERF->starttime, microtime());
 
-    $info['html'] .= '<li class="timeused col-sm-4">'.$info['realtime'].' secs</li> ';
-    $info['txt'] .= 'time: '.$info['realtime'].'s ';
+    $info['html'] .= '<li class="timeused col-sm-4">' . $formatting->format_number($info['realtime'], 3) . ' secs</li> ';
+    $info['txt'] .= 'time: ' . $formatting->format_number($info['realtime'], 3) . 's ';
 
     // GET/POST (or NULL if $_SERVER['REQUEST_METHOD'] is undefined) is useful for txt logged information.
     $info['txt'] .= 'method: ' . ($_SERVER['REQUEST_METHOD'] ?? "NULL") . ' ';
@@ -8969,8 +8971,8 @@ function get_performance_info() {
     $info['html'] .= '</ul><ul class="list-unstyled row mx-md-0">';
     $inc = get_included_files();
     $info['includecount'] = count($inc);
-    $info['html'] .= '<li class="included col-sm-4">Included '.$info['includecount'].' files</li> ';
-    $info['txt']  .= 'includecount: '.$info['includecount'].' ';
+    $info['html'] .= '<li class="included col-sm-4">Included ' . $formatting->format_number($info['includecount']) . ' files</li> ';
+    $info['txt']  .= 'includecount: '. $formatting->format_number($info['includecount']) . ' ';
 
     if (!empty($CFG->early_install_lang) or empty($PAGE)) {
         // We can not track more performance before installation or before PAGE init, sorry.
@@ -8992,13 +8994,13 @@ function get_performance_info() {
         list($filterinfo, $nicenames) = $stringmanager->get_performance_summary();
         $info = array_merge($filterinfo, $info);
         foreach ($filterinfo as $key => $value) {
-            $info['html'] .= "<li class='$key col-sm-4'>$nicenames[$key]: $value </li> ";
-            $info['txt'] .= "$key: $value ";
+            $info['html'] .= "<li class='$key col-sm-4'>$nicenames[$key]: " . $formatting->format_number($value) . "</li> ";
+            $info['txt'] .= "$key: " . $formatting->format_number($value);
         }
     }
 
-    $info['dbqueries'] = $DB->perf_get_reads().'/'.$DB->perf_get_writes();
-    $info['html'] .= '<li class="dbqueries col-sm-4">DB reads/writes: '.$info['dbqueries'].'</li> ';
+    $info['dbqueries'] = $formatting->format_number($DB->perf_get_reads()) . ' / ' . $formatting->format_number($DB->perf_get_writes());
+    $info['html'] .= '<li class="dbqueries col-sm-4">DB reads/writes: ' . $info['dbqueries'] . '</li> ';
     $info['txt'] .= 'db reads/writes: '.$info['dbqueries'].' ';
 
     if ($DB->want_read_replica()) {
@@ -9149,10 +9151,10 @@ function get_performance_info() {
                 $cell = new html_table_cell($store);
                 $cell->attributes = ['class' => $cachestoreclass];
                 $row[] = $cell;
-                $cell = new html_table_cell($data['hits']);
+                $cell = new html_table_cell($formatting->format_number($data['hits']));
                 $cell->attributes = ['class' => $cachestoreclass];
                 $row[] = $cell;
-                $cell = new html_table_cell($data['misses']);
+                $cell = new html_table_cell($formatting->format_number($data['misses']));
                 $cell->attributes = ['class' => $cachestoreclass];
                 $row[] = $cell;
 
@@ -9236,16 +9238,16 @@ function get_performance_info() {
             $cell = new html_table_cell($store);
             $cell->attributes = ['class' => $cachestoreclass];
             $row[] = $cell;
-            $cell = new html_table_cell($data['class']);
+            $cell = new html_table_cell($formatting->format_number((int)$data['class']));
             $cell->attributes = ['class' => $cachestoreclass];
             $row[] = $cell;
-            $cell = new html_table_cell($data['hits']);
+            $cell = new html_table_cell($formatting->format_number((int)$data['hits']));
             $cell->attributes = ['class' => $cachestoreclass];
             $row[] = $cell;
-            $cell = new html_table_cell($data['misses']);
+            $cell = new html_table_cell($formatting->format_number((int)$data['misses']));
             $cell->attributes = ['class' => $cachestoreclass];
             $row[] = $cell;
-            $cell = new html_table_cell($data['sets']);
+            $cell = new html_table_cell($formatting->format_number((int)$data['sets']));
             $cell->attributes = ['class' => $cachestoreclass];
             $row[] = $cell;
             if ($data['hits'] || $data['sets']) {
@@ -9272,9 +9274,9 @@ function get_performance_info() {
         $row = [
             get_string('total'),
             '',
-            $storetotal['hits'],
-            $storetotal['misses'],
-            $storetotal['sets'],
+            $formatting->format_number($storetotal['hits']),
+            $formatting->format_number($storetotal['misses']),
+            $formatting->format_number($storetotal['sets']),
             $size,
         ];
         $table->data[] = $row;
