@@ -88,8 +88,10 @@ class cron {
         // Emulate normal session. - we use admin account by default.
         self::setup_user();
 
+        $clock = \core\di::get(\core\clock::class);
+
         // Start output log.
-        $timenow = time();
+        $timenow = $clock->time();
         mtrace("Server Time: " . date('r', $timenow) . "\n\n");
 
         // Record start time and interval between the last cron runs.
@@ -117,14 +119,23 @@ class cron {
         // Calculate the finish time based on the start time and keepalive.
         $finishtime = $timenow + $keepalive;
 
+        // The earliest time at which scheduled tasks should next be polled. Initialised to
+        // null so they always run on the very first iteration. Set to null again after each
+        // run so the next due time is re-queried before the following iteration.
+        $nextscheduledtime = null;
+
         do {
             $startruntime = microtime();
+            $now = $clock->time();
 
-            // Run all scheduled tasks.
-            self::run_scheduled_tasks(time(), $timenow);
+            // Run scheduled tasks only when we have reached the next due time.
+            if ($nextscheduledtime === null || $now >= $nextscheduledtime) {
+                static::run_scheduled_tasks($now, $timenow);
+                $nextscheduledtime = null;
+            }
 
-            // Run adhoc tasks.
-            self::run_adhoc_tasks(time(), 0, true, $timenow);
+            // Always poll for adhoc tasks on every iteration.
+            static::run_adhoc_tasks($now, 0, true, $timenow);
 
             mtrace("Cron run completed correctly");
 
@@ -141,7 +152,7 @@ class cron {
             // - The finish time has not been reached; and
             // - The graceful exit flag has not been set; and
             // - The static caches have not been cleared since the start of the cron run.
-            $remaining = $finishtime - time();
+            $remaining = $finishtime - $clock->time();
             $runagain = $remaining > 0;
             $runagain = $runagain && !\core\local\cli\shutdown::should_gracefully_exit();
             $runagain = $runagain && !\core\task\manager::static_caches_cleared_since($timenow);
@@ -149,15 +160,46 @@ class cron {
             if ($runagain) {
                 $message .= " Continuing to check for tasks for {$remaining} more seconds.";
                 mtrace($message);
-                sleep(1);
+                static::sleep(1);
 
                 // Re-check the graceful exit and cache clear flags after sleeping as these may have changed.
                 $runagain = $runagain && !\core\local\cli\shutdown::should_gracefully_exit();
                 $runagain = $runagain && !\core\task\manager::static_caches_cleared_since($timenow);
+
+                if ($runagain && $nextscheduledtime === null) {
+                    // Re-query only when scheduled tasks ran this iteration — their nextruntimes
+                    // have just been updated so this is the freshest possible result.
+                    $nextscheduledtime = static::get_next_scheduled_task_time($clock->time()) ?? ($clock->time() + MINSECS);
+                }
             } else {
                 mtrace($message);
             }
         } while ($runagain);
+    }
+
+    /**
+     * Sleep for the given number of seconds.
+     *
+     * Extracted as a protected static method so that test subclasses can override it
+     * to advance a fake clock instead of blocking the process.
+     *
+     * @param int $seconds
+     */
+    protected static function sleep(int $seconds): void {
+        sleep($seconds);
+    }
+
+    /**
+     * Get the earliest future nextruntime of any enabled scheduled task.
+     *
+     * Extracted as a protected static method so that test subclasses can override it
+     * to return a controlled value without hitting the database.
+     *
+     * @param int $after Only consider tasks whose nextruntime is strictly after this timestamp.
+     * @return int|null The earliest future nextruntime, or null if no future tasks are found.
+     */
+    protected static function get_next_scheduled_task_time(int $after): ?int {
+        return \core\task\manager::get_next_scheduled_task_time($after);
     }
 
     /**

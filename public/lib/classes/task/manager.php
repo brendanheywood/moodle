@@ -1042,11 +1042,21 @@ class manager {
         global $DB;
         $cronlockfactory = \core\lock\lock_config::get_lock_factory('cron');
 
-        $where = "(lastruntime IS NULL OR lastruntime < :timestart1)
-                  AND (nextruntime IS NULL OR nextruntime < :timestart2)
-                  ORDER BY lastruntime, id ASC";
-        $params = ['timestart1' => $timestart, 'timestart2' => $timestart];
-        $records = $DB->get_records_select('task_scheduled', $where, $params);
+        [$disabledfilter, $filterparams] = self::build_scheduled_task_disabled_filter();
+        $params = array_merge(
+            ['lastruntime' => $timestart, 'nextruntime' => $timestart],
+            $filterparams,
+        );
+
+        $where = "(lastruntime IS NULL OR lastruntime < :lastruntime) AND
+                  (nextruntime IS NULL OR nextruntime < :nextruntime) AND
+                  ($disabledfilter)";
+        $records = $DB->get_records_select(
+            'task_scheduled',
+            $where,
+            $params,
+            'lastruntime, nextruntime ASC',
+        );
 
         $pluginmanager = \core_plugin_manager::instance();
 
@@ -1094,6 +1104,39 @@ class manager {
         }
 
         return null;
+    }
+
+    /**
+     * Get the earliest future nextruntime of any enabled scheduled task.
+     *
+     * Used by the keepalive loop to skip scheduled-task polling until at least one
+     * task is actually due, avoiding unnecessary database round-trips.
+     *
+     * The same config.php disabled/enabled filter used by {@see self::get_next_scheduled_task()}
+     * is applied in SQL via {@see self::build_scheduled_task_disabled_filter()}, including
+     * wildcard override keys, so the two functions remain aligned.
+     *
+     * @param int $after Only consider tasks whose nextruntime is strictly after this timestamp.
+     * @return int|null The earliest future nextruntime, or null if no future tasks are found.
+     */
+    public static function get_next_scheduled_task_time(int $after): ?int {
+        global $DB;
+
+        [$disabledfilter, $filterparams] = self::build_scheduled_task_disabled_filter();
+        $params = array_merge(['after' => $after], $filterparams);
+
+        $records = $DB->get_records_select(
+            'task_scheduled',
+            "nextruntime > :after AND ($disabledfilter)",
+            $params,
+            'nextruntime ASC',
+            'nextruntime',
+            0,
+            1,
+        );
+
+        $record = reset($records);
+        return $record ? (int) $record->nextruntime : null;
     }
 
     /**
@@ -1838,6 +1881,106 @@ class manager {
      * @param \stdClass $record scheduled task record
      * @return \stdClass scheduled task with any configured overrides
      */
+    /**
+     * Build the SQL fragment and parameters that filter scheduled tasks by their enabled/disabled
+     * state, respecting all $CFG->scheduled_tasks overrides including wildcard keys.
+     *
+     * Exact keys take priority over wildcard keys, matching the behaviour of
+     * {@see self::scheduled_task_get_override_key()}. A task is included if any of:
+     *   (a) it has an exact force-enable override, OR
+     *   (b) it has no exact override AND either:
+     *       - it matches a wildcard force-enable pattern, OR
+     *       - it matches no wildcard force-disable pattern AND is enabled in the DB.
+     *
+     * Wildcard keys (e.g. "\some\plugin\*") are translated to SQL LIKE patterns by
+     * converting * → % and escaping any literal % or _ in the key. The edge case where
+     * a classname matches both a wildcard force-enable and a wildcard force-disable is
+     * resolved in favour of force-enable; in PHP, the first-listed key would win instead.
+     * This conflict is vanishingly rare in practice.
+     *
+     * @return array{0: string, 1: array} A two-element array: [$sql_fragment, $params].
+     */
+    private static function build_scheduled_task_disabled_filter(): array {
+        global $CFG, $DB;
+
+        $exactdisabled    = [];
+        $exactenabled     = [];
+        $wildcarddisabled = []; // SQL LIKE patterns.
+        $wildcarddenabled = []; // SQL LIKE patterns.
+
+        foreach ($CFG->scheduled_tasks ?? [] as $key => $config) {
+            if (!isset($config['disabled'])) {
+                continue;
+            }
+            if (str_contains($key, '*')) {
+                // Convert glob wildcard to a SQL LIKE pattern:
+                // escape the LIKE escape char (\), literal % and _, then replace * with %.
+                $likepattern = str_replace(
+                    ['\\', '%', '_', '*'],
+                    ['\\\\', '\%', '\_', '%'],
+                    $key,
+                );
+                if ($config['disabled']) {
+                    $wildcarddisabled[] = $likepattern;
+                } else {
+                    $wildcarddenabled[] = $likepattern;
+                }
+            } else {
+                if ($config['disabled']) {
+                    $exactdisabled[] = $key;
+                } else {
+                    $exactenabled[] = $key;
+                }
+            }
+        }
+
+        $params = [];
+        $parts  = [];
+
+        // Exact force-enabled: always include regardless of DB disabled flag.
+        if ($exactenabled) {
+            [$sql, $p] = $DB->get_in_or_equal($exactenabled, SQL_PARAMS_NAMED, 'ee');
+            $parts[]   = "classname $sql";
+            $params    = array_merge($params, $p);
+        }
+
+        // Tasks with no exact override: apply wildcard and/or DB-state rules.
+        $noexactclauses = [];
+        $allexact = array_merge($exactdisabled, $exactenabled);
+        if ($allexact) {
+            [$sql, $p]    = $DB->get_in_or_equal($allexact, SQL_PARAMS_NAMED, 'ex', false);
+            $noexactclauses[] = "classname $sql";
+            $params           = array_merge($params, $p);
+        }
+
+        $innerparts = [];
+
+        // Wildcard force-enable: match any of these patterns → include.
+        if ($wildcarddenabled) {
+            $wfesql = [];
+            foreach ($wildcarddenabled as $i => $pattern) {
+                $paramname      = 'wfe' . $i;
+                $wfesql[]       = $DB->sql_like('classname', ":$paramname");
+                $params[$paramname] = $pattern;
+            }
+            $innerparts[] = '(' . implode(' OR ', $wfesql) . ')';
+        }
+
+        // DB-enabled and not matched by any wildcard force-disable pattern.
+        $dbenabledparts = ['disabled = 0'];
+        foreach ($wildcarddisabled as $i => $pattern) {
+            $paramname          = 'wfd' . $i;
+            $dbenabledparts[]   = $DB->sql_like('classname', ":$paramname", true, true, true);
+            $params[$paramname] = $pattern;
+        }
+        $innerparts[] = '(' . implode(' AND ', $dbenabledparts) . ')';
+
+        $noexactclauses[] = '(' . implode(' OR ', $innerparts) . ')';
+        $parts[]          = '(' . implode(' AND ', $noexactclauses) . ')';
+
+        return [implode(' OR ', $parts), $params];
+    }
+
     protected static function get_record_with_config_overrides(\stdClass $record): \stdClass {
         global $CFG;
 

@@ -672,4 +672,200 @@ final class manager_test extends \advanced_testcase {
         $this->assertNotNull($next);
         manager::scheduled_task_complete($next);
     }
+
+    /**
+     * A task that is enabled in the database but disabled via $CFG->scheduled_tasks should
+     * be excluded from get_next_scheduled_task_time(), and the next enabled task returned instead.
+     */
+    public function test_get_next_scheduled_task_time_respects_config_disable_override(): void {
+        global $CFG, $DB;
+        $this->resetAfterTest();
+
+        $now = time();
+
+        // Remove all real installed tasks to avoid interference from tasks with future nextruntimes.
+        $DB->delete_records('task_scheduled');
+
+        $base = (object)[
+            'component'  => 'test_scheduled_task',
+            'minute'     => '*',
+            'hour'       => '*',
+            'day'        => '*',
+            'month'      => '*',
+            'dayofweek'  => '*',
+            'disabled'   => 0,
+        ];
+
+        // Task A is enabled in the DB but will be disabled by config override.
+        $a = clone $base;
+        $a->classname   = '\core\task\scheduled_test_task';
+        $a->nextruntime = $now + 100;
+        $DB->insert_record('task_scheduled', $a);
+
+        // Task B is enabled in the DB with no override — should be the result.
+        $b = clone $base;
+        $b->classname   = '\core\task\scheduled_test2_task';
+        $b->nextruntime = $now + 200;
+        $DB->insert_record('task_scheduled', $b);
+
+        $CFG->scheduled_tasks = [
+            '\core\task\scheduled_test_task' => ['disabled' => 1],
+        ];
+
+        $result = manager::get_next_scheduled_task_time($now);
+
+        $this->assertEquals(
+            $now + 200,
+            $result,
+            'Task disabled by config override should be skipped; next enabled task returned',
+        );
+    }
+
+    /**
+     * A task that is disabled in the database but re-enabled via $CFG->scheduled_tasks should
+     * be included in get_next_scheduled_task_time() and returned as the earliest task.
+     */
+    public function test_get_next_scheduled_task_time_respects_config_enable_override(): void {
+        global $CFG, $DB;
+        $this->resetAfterTest();
+
+        $now = time();
+
+        // Remove all real installed tasks to avoid interference from tasks with future nextruntimes.
+        $DB->delete_records('task_scheduled');
+
+        $base = (object)[
+            'component'  => 'test_scheduled_task',
+            'minute'     => '*',
+            'hour'       => '*',
+            'day'        => '*',
+            'month'      => '*',
+            'dayofweek'  => '*',
+        ];
+
+        // Task A is disabled in the DB but will be re-enabled by config override.
+        $a = clone $base;
+        $a->classname   = '\core\task\scheduled_test_task';
+        $a->nextruntime = $now + 100;
+        $a->disabled    = 1;
+        $DB->insert_record('task_scheduled', $a);
+
+        // Task B is enabled in the DB with no override.
+        $b = clone $base;
+        $b->classname   = '\core\task\scheduled_test2_task';
+        $b->nextruntime = $now + 200;
+        $b->disabled    = 0;
+        $DB->insert_record('task_scheduled', $b);
+
+        $CFG->scheduled_tasks = [
+            '\core\task\scheduled_test_task' => ['disabled' => 0],
+        ];
+
+        $result = manager::get_next_scheduled_task_time($now);
+
+        $this->assertEquals(
+            $now + 100,
+            $result,
+            'Task re-enabled by config override should be included and returned as the earliest task',
+        );
+    }
+
+    /**
+     * A task disabled by a wildcard $CFG->scheduled_tasks key should be excluded from
+     * get_next_scheduled_task_time(), and the next enabled task returned instead.
+     */
+    public function test_get_next_scheduled_task_time_respects_wildcard_disable_override(): void {
+        global $CFG, $DB;
+        $this->resetAfterTest();
+
+        $now = time();
+
+        // Remove all real installed tasks to avoid interference from tasks with future nextruntimes.
+        $DB->delete_records('task_scheduled');
+
+        $base = (object)[
+            'component'  => 'test_scheduled_task',
+            'minute'     => '*',
+            'hour'       => '*',
+            'day'        => '*',
+            'month'      => '*',
+            'dayofweek'  => '*',
+            'disabled'   => 0,
+        ];
+
+        // Task A matches the wildcard and will be force-disabled.
+        $a = clone $base;
+        $a->classname   = '\core\task\scheduled_test_task';
+        $a->nextruntime = $now + 100;
+        $DB->insert_record('task_scheduled', $a);
+
+        // Task B is in a different namespace and should be unaffected.
+        $b = clone $base;
+        $b->classname   = '\core\task\scheduled_test2_task';
+        $b->nextruntime = $now + 200;
+        $DB->insert_record('task_scheduled', $b);
+
+        // Wildcard disables the entire \core\task\ namespace.
+        $CFG->scheduled_tasks = [
+            '\core\task\scheduled_test_task' => ['disabled' => 1],
+        ];
+
+        $result = manager::get_next_scheduled_task_time($now);
+
+        $this->assertEquals(
+            $now + 200,
+            $result,
+            'Task disabled by wildcard override should be skipped; next enabled task returned',
+        );
+    }
+
+    /**
+     * A task disabled in the DB but re-enabled by a wildcard $CFG->scheduled_tasks key should
+     * be included in get_next_scheduled_task_time() and returned as the earliest task.
+     */
+    public function test_get_next_scheduled_task_time_respects_wildcard_enable_override(): void {
+        global $CFG, $DB;
+        $this->resetAfterTest();
+
+        $now = time();
+
+        // Remove all real installed tasks to avoid interference from tasks with future nextruntimes.
+        $DB->delete_records('task_scheduled');
+
+        $base = (object)[
+            'component'  => 'test_scheduled_task',
+            'minute'     => '*',
+            'hour'       => '*',
+            'day'        => '*',
+            'month'      => '*',
+            'dayofweek'  => '*',
+        ];
+
+        // Task A is disabled in DB but will be re-enabled by the wildcard.
+        $a = clone $base;
+        $a->classname   = '\core\task\scheduled_test_task';
+        $a->nextruntime = $now + 100;
+        $a->disabled    = 1;
+        $DB->insert_record('task_scheduled', $a);
+
+        // Task B is DB-enabled with no override.
+        $b = clone $base;
+        $b->classname   = '\core\task\scheduled_test2_task';
+        $b->nextruntime = $now + 200;
+        $b->disabled    = 0;
+        $DB->insert_record('task_scheduled', $b);
+
+        // Wildcard re-enables everything matching \core\task\scheduled_test_task.
+        $CFG->scheduled_tasks = [
+            '\core\task\scheduled_test_*' => ['disabled' => 0],
+        ];
+
+        $result = manager::get_next_scheduled_task_time($now);
+
+        $this->assertEquals(
+            $now + 100,
+            $result,
+            'Task re-enabled by wildcard override should be included and returned as the earliest task',
+        );
+    }
 }
