@@ -556,6 +556,69 @@ final class authlib_test extends \advanced_testcase {
      *
      * @covers ::login_lock_account()
      */
+    /**
+     * Test that when passwordpolicycheckonlogin fails for an auth plugin with an external
+     * change_password_url(), the user is redirected directly to that URL and the
+     * auth_forcepasswordchange preference is NOT set (to avoid an infinite redirect loop,
+     * since Moodle's change_password.php never runs for external auth and cannot clear the flag).
+     */
+    public function test_password_policy_check_redirects_to_external_change_url(): void {
+        global $CFG, $DB;
+
+        $this->resetAfterTest();
+
+        $CFG->passwordpolicycheckonlogin = 1;
+        $CFG->passwordpolicy = 1;
+
+        // Create a user with a weak password (will fail policy).
+        $user = $this->getDataGenerator()->create_user(['username' => 'extauthuser', 'password' => 'a']);
+        $DB->set_field('user', 'auth', 'externalauth', ['id' => $user->id]);
+        $user->auth = 'externalauth';
+
+        $changeurl = new \moodle_url('https://example.com/changepassword');
+
+        // Mock the auth plugin to simulate an external auth (e.g. LDAP) with its own password URL.
+        $mockauthplugin = $this->createMock(\auth_plugin_base::class);
+        $mockauthplugin->method('user_login')->willReturn(true);
+        $mockauthplugin->method('can_change_password')->willReturn(true);
+        $mockauthplugin->method('change_password_url')->willReturn($changeurl);
+        $mockauthplugin->method('is_internal')->willReturn(false);
+        $mockauthplugin->method('is_synchronised_with_external')->willReturn(false);
+        $mockauthplugin->method('pre_user_login_hook')->willReturn(null);
+        $mockauthplugin->method('sync_roles')->willReturn(null);
+
+        $mockauthentication = $this->createMock(\core\authentication::class);
+        $mockauthentication->method('get_enabled_plugins')->willReturn(['externalauth']);
+        $mockauthentication->method('is_enabled')->willReturn(true);
+        $mockauthentication->method('get_plugin')->willReturn($mockauthplugin);
+
+        \core\di::set(\core\authentication::class, $mockauthentication);
+
+        // Also mock validate_user so the disabled-auth check passes for our fake plugin.
+        $mockvalidator = $this->createMock(\core_auth\validate_user::class);
+        \core\di::set(\core_auth\validate_user::class, $mockvalidator);
+
+        // In CLI context, redirect() throws moodle_exception('redirecterrordetected').
+        $reason = null;
+        try {
+            authenticate_user_login('extauthuser', 'a', true, $reason);
+            $this->fail('Expected moodle_exception from redirect() to external change password URL');
+        } catch (\moodle_exception $e) {
+            $this->assertEquals(
+                'redirecterrordetected',
+                $e->errorcode,
+                'Expected a redirect, not a different exception'
+            );
+        }
+
+        // The force-change flag must NOT be set — it can only be cleared by Moodle's internal
+        // change_password.php, so setting it for external auth creates an infinite redirect loop.
+        $this->assertFalse(
+            (bool) get_user_preferences('auth_forcepasswordchange', false, $user),
+            'auth_forcepasswordchange must not be set for external auth with change_password_url()'
+        );
+    }
+
     public function test_email_greetings(): void {
         $this->resetAfterTest();
 

@@ -3960,6 +3960,13 @@ function authenticate_user_login(
                     if (!($PAGE->has_set_url() && $internalchangeurl->compare($PAGE->url)) && $authplugin->is_internal()) {
                         \core\notification::error(get_string('passwordpolicynomatch', '', $errmsg));
                     }
+                    if ($changeurl = $authplugin->change_password_url()) {
+                        // The plugin manages passwords via an external URL. Redirect directly
+                        // rather than setting auth_forcepasswordchange: that flag is only cleared
+                        // by Moodle's own change_password.php, so it would never be unset after
+                        // an external change and would cause an infinite redirect loop.
+                        redirect($changeurl);
+                    }
                     set_user_preference('auth_forcepasswordchange', 1, $user);
                 } else if ($authplugin->can_reset_password()) {
                     // Else force a reset if possible.

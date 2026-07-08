@@ -1942,5 +1942,52 @@ function xmldb_main_upgrade($oldversion) {
         upgrade_main_savepoint(true, 2026061600.01);
     }
 
+    if ($oldversion < 2026070800.01) {
+        // MDL-88487: Clear the auth_forcepasswordchange preference for users whose auth
+        // plugin provides its own change_password_url(). That flag is only ever cleared
+        // by Moodle's own change_password.php, so for external-URL plugins it was never
+        // unset after a redirect, trapping users in an infinite redirect loop on every login.
+        //
+        // Group affected users by auth plugin to minimise plugin instantiation.
+        $sql = "SELECT DISTINCT u.auth
+                  FROM {user_preferences} up
+                  JOIN {user} u ON u.id = up.userid
+                 WHERE up.name = :prefname
+                   AND u.auth != 'manual'
+                   AND u.deleted = 0";
+        $authtypes = $DB->get_fieldset_sql($sql, ['prefname' => 'auth_forcepasswordchange']);
+
+        $authstofix = [];
+        foreach ($authtypes as $authtype) {
+            $authpluginfile = $CFG->dirroot . "/auth/{$authtype}/auth.php";
+            if (!file_exists($authpluginfile)) {
+                continue;
+            }
+            require_once($authpluginfile);
+            $class = "auth_plugin_{$authtype}";
+            if (!class_exists($class)) {
+                continue;
+            }
+            $plugin = new $class();
+            if ($plugin->change_password_url()) {
+                $authstofix[] = $authtype;
+            }
+        }
+
+        if (!empty($authstofix)) {
+            upgrade_set_timeout(300);
+            [$insql, $inparams] = $DB->get_in_or_equal($authstofix, SQL_PARAMS_NAMED, 'auth');
+            $DB->delete_records_select(
+                'user_preferences',
+                "name = :prefname AND userid IN (
+                    SELECT id FROM {user} WHERE auth $insql AND deleted = 0
+                )",
+                array_merge(['prefname' => 'auth_forcepasswordchange'], $inparams)
+            );
+        }
+
+        upgrade_main_savepoint(true, 2026070800.01);
+    }
+
     return true;
 }
