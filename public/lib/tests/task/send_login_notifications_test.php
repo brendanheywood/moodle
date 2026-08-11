@@ -88,18 +88,19 @@ final class send_login_notifications_test extends \advanced_testcase {
     }
 
     /**
-     * Test new login notification is skipped because of same browser from last login.
+     * Test new login notification is sent when the IP address changes, regardless of session cookie state.
      */
-    public function test_login_notification_skip_same_browser(): void {
+    public function test_login_notification_new_ip(): void {
         global $SESSION;
 
         $this->resetAfterTest();
 
+        \core\session\manager::set_cookies_supported(true);
         $loginuser = self::getDataGenerator()->create_user();
         $this->setUser(0);
 
         // Mock data for test.
-        $loginuser->lastip = '1.2.3.4.6'; // Different ip that current.
+        $loginuser->lastip = '1.2.3.4'; // Different ip that current.
         $SESSION->isnewsessioncookie = false;
         @complete_user_login($loginuser);
 
@@ -112,23 +113,112 @@ final class send_login_notifications_test extends \advanced_testcase {
         $messages = $sink->get_messages();
         $sink->close();
 
-        // Skip notification, different ip but same browser (probably, mobile phone browser).
-        $this->assertCount(0, $messages);
+        // Notification is sent: a different IP with no matching username cookie triggers it.
+        $this->assertCount(1, $messages);
+        $this->assertEquals($loginuser->id, $messages[0]->useridto);
+        $this->assertEquals('newlogin', $messages[0]->eventtype);
     }
 
     /**
-     * Test new login notification is skipped because of auto-login from the mobile app (skip duplicated notifications).
+     * Test new login notification is skipped when the same user is logging in again (same username cookie).
+     *
+     * The IP must be different to ensure $isnewip is true, so we are specifically
+     * testing the $issameuser check and not the IP check.
      */
-    public function test_login_notification_skip_mobileapp(): void {
-        global $SESSION;
+    public function test_login_notification_skip_same_user(): void {
+        global $CFG, $SESSION;
 
         $this->resetAfterTest();
+
+        \core\session\manager::set_cookies_supported(true);
+        $CFG->rememberusername = 1;
 
         $loginuser = self::getDataGenerator()->create_user();
         $this->setUser(0);
 
+        // Set the username cookie to simulate the same user logging in again.
+        $cookiename = 'MOODLEID1_' . $CFG->sessioncookie;
+        $_COOKIE[$cookiename] = \core\encryption::encrypt($loginuser->username);
+
+        // Mock data for test: different IP and new session cookie, so only $issameuser prevents the notification.
+        $loginuser->lastip = '1.2.3.4'; // Different ip from current.
+        $SESSION->isnewsessioncookie = true;
+        @complete_user_login($loginuser);
+
+        // Redirect messages to sink and stop buffer output from CLI task.
+        $sink = $this->redirectMessages();
+        ob_start();
+        $this->runAdhocTasks('\core\task\send_login_notifications');
+        ob_get_contents();
+        ob_end_clean();
+        $messages = $sink->get_messages();
+        $sink->close();
+
+        unset($_COOKIE[$cookiename]);
+
+        // Skip notification: different IP and new session, but same user in cookie.
+        $this->assertCount(0, $messages);
+    }
+
+    /**
+     * Test new login notification is sent when a different user logs in from a new IP,
+     * even though there is a username cookie present for a different account.
+     *
+     * This confirms the $issameuser check uses the cookie value, not just its presence.
+     */
+    public function test_login_notification_different_user_sends(): void {
+        global $CFG, $SESSION;
+
+        $this->resetAfterTest();
+
+        \core\session\manager::set_cookies_supported(true);
+        $CFG->rememberusername = 1;
+
+        $loginuser = self::getDataGenerator()->create_user();
+        $otheuser  = self::getDataGenerator()->create_user();
+        $this->setUser(0);
+
+        // Cookie belongs to a different user.
+        $cookiename = 'MOODLEID1_' . $CFG->sessioncookie;
+        $_COOKIE[$cookiename] = \core\encryption::encrypt($otheuser->username);
+
+        // Mock data for test: different IP and new session cookie.
+        $loginuser->lastip = '1.2.3.4'; // Different ip from current.
+        $SESSION->isnewsessioncookie = true;
+        @complete_user_login($loginuser);
+
+        // Redirect messages to sink and stop buffer output from CLI task.
+        $sink = $this->redirectMessages();
+        ob_start();
+        $this->runAdhocTasks('\core\task\send_login_notifications');
+        ob_get_contents();
+        ob_end_clean();
+        $messages = $sink->get_messages();
+        $sink->close();
+
+        unset($_COOKIE[$cookiename]);
+
+        // Send notification: different IP, new session, and different user in cookie.
+        $this->assertCount(1, $messages);
+        $this->assertEquals($loginuser->id, $messages[0]->useridto);
+        $this->assertEquals('newlogin', $messages[0]->eventtype);
+    }
+
+
+    /**
+     * Test new login notification is sent for mobile app logins from a new IP address.
+     */
+    public function test_login_notification_mobileapp(): void {
+        global $SESSION;
+
+        $this->resetAfterTest();
+
+        \core\session\manager::set_cookies_supported(true);
+        $loginuser = self::getDataGenerator()->create_user();
+        $this->setUser(0);
+
         // Mock data for test.
-        $loginuser->lastip = '1.2.3.4.6';   // Different ip that current.
+        $loginuser->lastip = '1.2.3.4';   // Different ip that current.
         $SESSION->isnewsessioncookie = true;    // New session cookie.
         \core_useragent::instance(true, 'MoodleMobile'); // Force fake mobile app user agent.
         @complete_user_login($loginuser);
@@ -142,7 +232,10 @@ final class send_login_notifications_test extends \advanced_testcase {
         $messages = $sink->get_messages();
         $sink->close();
 
-        $this->assertCount(0, $messages);
+        // Notification is sent: different IP and a mobile app user agent triggers it.
+        $this->assertCount(1, $messages);
+        $this->assertEquals($loginuser->id, $messages[0]->useridto);
+        $this->assertEquals('newlogin', $messages[0]->eventtype);
     }
 
     /**
