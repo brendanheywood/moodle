@@ -77,15 +77,16 @@ class core_message_renderer extends plugin_renderer_base {
         $table = new html_table();
         $table->caption = get_string('messageoutputs', 'message');
         $table->captionhide = true;
-        $table->attributes['class'] = 'admintable table generaltable table-hover';
+        $table->attributes['class'] = 'admintable table generaltable table-hover w-auto';
         $table->data        = array();
         $table->head        = array(
             get_string('name'),
             get_string('enable'),
+            get_string('ready', 'message'),
             get_string('settings'),
         );
         $table->colclasses = array(
-            'displayname', 'availability text-center', 'settings',
+            'displayname', 'availability text-center', 'configured text-center', 'settings',
         );
 
         foreach ($processors as $processor) {
@@ -110,6 +111,16 @@ class core_message_renderer extends plugin_renderer_base {
                     ]
                 );
             }
+            // Configured.
+            $configured = new html_table_cell();
+            if ($processor->enabled) {
+                if ($processor->configured) {
+                    $configured->text = $this->pix_icon('i/valid', get_string('yes'));
+                } else {
+                    $configured->text = $this->pix_icon('i/invalid', get_string('no'));
+                }
+            }
+
             // Settings
             $settings = new html_table_cell();
             if ($processor->available && $processor->hassettings) {
@@ -117,7 +128,7 @@ class core_message_renderer extends plugin_renderer_base {
                 $settings->text = html_writer::link($settingsurl, get_string('settings', 'message'));
             }
 
-            $row->cells = array($name, $enable, $settings);
+            $row->cells = [$name, $enable, $configured, $settings];
             $table->data[] = $row;
         }
         return html_writer::table($table);
