@@ -218,6 +218,7 @@ $string['processorsettings'] = 'Processor settings';
 $string['providerenabled'] = 'Sending "{$a}" enabled status';
 $string['providerprocesorislocked'] = '"{$a->provider}" on "{$a->processor}" is locked on';
 $string['providerprocesorisdisallowed'] = '"{$a->provider}" on "{$a->processor}" is locked off';
+$string['ready'] = 'Ready';
 $string['recipient'] = 'Recipient';
 $string['removecontact'] = 'Remove contact';
 $string['removecontactconfirm'] = 'Are you sure you want to remove {$a} from your contacts?';
