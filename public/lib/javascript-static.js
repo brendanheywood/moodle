@@ -29,6 +29,16 @@ M.util = M.util || {};
  */
 M.str = M.str || {};
 
+if (M.cfg.debugtemplateinfo) {
+    // eslint-disable-next-line no-console
+    window.console.warn(
+        'Moodle: $CFG->debugtemplateinfo is enabled!\n' +
+        'Template debug comments are injected into HTML strings passed to JavaScript.\n' +
+        'This can cause JavaScript errors such as "Cannot read properties of null".\n' +
+        'Disable it at: ' + M.cfg.wwwroot + '/admin/search.php?query=debugtemplateinfo'
+    );
+}
+
 /**
  * Returns url for images.
  * @param {String} imagename
