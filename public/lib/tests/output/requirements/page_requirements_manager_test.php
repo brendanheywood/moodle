@@ -125,4 +125,28 @@ final class page_requirements_manager_test extends \advanced_testcase {
         $this->assertNotFalse($linkpos, 'Expected at least one modulepreload link in the output.');
         $this->assertLessThan($linkpos, $scriptpos, 'The importmap script tag must precede modulepreload links.');
     }
+
+    /**
+     * When $CFG->debugtemplateinfo is enabled, M.cfg.debugtemplateinfo must be exposed to
+     * JavaScript so that javascript-static.js can warn in the console that template debug
+     * comments are being injected into HTML strings (which can otherwise cause confusing
+     * JavaScript errors). When the setting is disabled, the key must be entirely absent so
+     * the warning is not shown.
+     */
+    public function test_get_config_for_javascript_exposes_debugtemplateinfo(): void {
+        global $CFG, $PAGE;
+
+        $this->resetAfterTest();
+
+        $CFG->debugtemplateinfo = 1;
+        $manager = new page_requirements_manager();
+        $cfg = $manager->get_config_for_javascript($PAGE, $PAGE->get_renderer('core'));
+        $this->assertArrayHasKey('debugtemplateinfo', $cfg);
+        $this->assertTrue($cfg['debugtemplateinfo']);
+
+        $CFG->debugtemplateinfo = 0;
+        $manager = new page_requirements_manager();
+        $cfg = $manager->get_config_for_javascript($PAGE, $PAGE->get_renderer('core'));
+        $this->assertArrayNotHasKey('debugtemplateinfo', $cfg);
+    }
 }

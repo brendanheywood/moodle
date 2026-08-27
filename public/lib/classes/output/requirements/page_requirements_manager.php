@@ -344,6 +344,9 @@ class page_requirements_manager {
             if ($CFG->debugdeveloper) {
                 $this->M_cfg['developerdebug'] = true;
             }
+            if (!empty($CFG->debugtemplateinfo)) {
+                $this->M_cfg['debugtemplateinfo'] = true;
+            }
             if (defined('BEHAT_SITE_RUNNING')) {
                 $this->M_cfg['behatsiterunning'] = true;
             }
