@@ -126,6 +126,10 @@ class configtext extends \core_admin\setting {
         global $OUTPUT;
 
         $default = $this->get_defaultsetting();
+        if (($this->paramtype === PARAM_INT || $this->paramtype === PARAM_FLOAT) && is_numeric($default)) {
+            $decimalpoints = ($this->paramtype === PARAM_FLOAT) ? -1 : 0;
+            $default = format_float((float) $default, $decimalpoints, stripzeros: true);
+        }
         $context = (object) [
             'size' => $this->size,
             'id' => $this->get_id(),
