@@ -186,9 +186,15 @@ class url {
      * @throws coding_exception
      */
     public function params(?array $params = null) {
-        $params = (array)$params;
+        // Fast path: this is called unconditionally by the constructor (even with no
+        // params to add), and url objects are constructed extremely frequently
+        // (e.g. once per cm_info per course-modinfo rebuild), so avoid the cost of
+        // cleaning/merging when there is nothing to do.
+        if (empty($params)) {
+            return $this->params;
+        }
         $params = $this->clean_url_params($params);
-        $this->params = array_merge($this->params, $params);
+        $this->params = empty($this->params) ? $params : array_merge($this->params, $params);
         return $this->params;
     }
 
@@ -204,13 +210,36 @@ class url {
         // Convert all values to strings.
         // This was the original implementation of the params function,
         // which we have kept for backwards compatibility.
-        array_walk_recursive($params, function (&$value) {
+        //
+        // URL params are overwhelmingly a flat list of scalars (e.g. ['id' => 5]),
+        // so use a plain loop for that common case instead of array_walk_recursive(),
+        // which allocates a new closure and pays recursion overhead on every call.
+        // Nested array values are rare (e.g. repeated field names) so fall back to
+        // the original recursive behaviour, inline, only when one is actually
+        // encountered - avoiding a second method call on that path.
+        //
+        // Note: we build a new $result array rather than mutating $params in place.
+        // Writing into $params while iterating over it would force PHP to duplicate
+        // the array (copy-on-write) as soon as the first value changes, which would
+        // be wasted work on the nested-array fallback path below since that partial
+        // copy gets discarded in favour of the original $params.
+        $result = [];
+        foreach ($params as $key => $value) {
+            if (is_array($value)) {
+                array_walk_recursive($params, function (&$v) {
+                    if (is_object($v) && !is_a($v, \Stringable::class)) {
+                        throw new coding_exception('Url parameters values can not be objects, unless __toString() is defined!');
+                    }
+                    $v = (string) $v;
+                });
+                return $params;
+            }
             if (is_object($value) && !is_a($value, \Stringable::class)) {
                 throw new coding_exception('Url parameters values can not be objects, unless __toString() is defined!');
             }
-            $value = (string) $value;
-        });
-        return $params;
+            $result[$key] = (string) $value;
+        }
+        return $result;
     }
 
     /**
