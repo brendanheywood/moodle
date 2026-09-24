@@ -40,19 +40,36 @@ class composer_di {
 
                 $vendordir = null;
                 if (class_exists(\Composer\InstalledVersions::class)) {
-                    $rootpackage = \Composer\InstalledVersions::getRootPackage();
-                    if (!is_array($rootpackage) || empty($rootpackage['install_path'])) {
-                        $vendordir = $CFG->root . '/vendor';
+                    // Multiple Composer-managed vendor directories can be loaded in the same request
+                    // (for example, plugins bundling their own vendor/autoload.php). In that case
+                    // `getRootPackage()` is ambiguous as it simply returns the most-recently
+                    // registered installed.php data, which may belong to a plugin rather than to
+                    // Moodle itself. Prefer the raw data block whose install path actually matches
+                    // the Moodle root before falling back to `getRootPackage()`.
+                    $rootrealpath = realpath($CFG->root);
+                    if ($rootrealpath !== false) {
+                        foreach (\Composer\InstalledVersions::getAllRawData() as $rawdata) {
+                            $installpath = $rawdata['root']['install_path'] ?? null;
+                            if (!empty($installpath) && realpath($installpath) === $rootrealpath) {
+                                $vendordir = $rootrealpath . '/vendor';
+                                break;
+                            }
+                        }
                     }
-                } else {
-                    $vendordir = $CFG->root . '/vendor';
+
+                    if ($vendordir === null) {
+                        $rootpackage = \Composer\InstalledVersions::getRootPackage();
+                        if (is_array($rootpackage) && !empty($rootpackage['install_path'])) {
+                            $realpath = realpath($rootpackage['install_path']);
+                            if ($realpath !== false) {
+                                $vendordir = $realpath . '/vendor';
+                            }
+                        }
+                    }
                 }
 
                 if ($vendordir === null) {
-                    $realpath = realpath($rootpackage['install_path']);
-                    if ($realpath !== false) {
-                        $vendordir = $realpath . '/vendor';
-                    }
+                    $vendordir = $CFG->root . '/vendor';
                 }
 
                 return new \core\composer(
