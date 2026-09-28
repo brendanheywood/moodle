@@ -160,7 +160,7 @@ class behat_command {
         global $CFG;
 
         $currentcwd = getcwd();
-        $rootpath = realpath(\Composer\InstalledVersions::getRootPackage()['install_path']);
+        $rootpath = \core\test\testing_util::get_package_root();
         chdir($rootpath);
         exec(self::get_behat_command() . ' ' . $options, $output, $code);
         chdir($currentcwd);
