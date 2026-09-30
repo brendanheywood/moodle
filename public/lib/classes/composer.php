@@ -144,13 +144,26 @@ class composer {
      * @return string
      */
     public static function locate_moodle_vendor_directory($rootdir = null): string {
-        // We need to provide the vendor directory for the Moodle composer installation.
+        return self::locate_moodle_root_package_directory($rootdir) . '/vendor';
+    }
+
+    /**
+     * Locate the root directory of the Moodle package.
+     *
+     * This is used both to find the Moodle vendor directory, and the package root directory that Moodle is
+     * installed in.
+     *
+     * @param string|null $rootdir The root directory of the Moodle installation.
+     * @return string
+     */
+    public static function locate_moodle_root_package_directory(?string $rootdir = null): string {
+        // We need to provide the root directory for the Moodle composer installation.
         // We accept the following locations:
-        // 1. The default vendor directory within the Moodle root were the package type is 'moodle-core'; or
+        // 1. The default root directory within the Moodle root were the package type is 'moodle-core'; or
         // 2. A composer package type of 'project', and an install path which is:
         // 2a. in the parent directory of the Moodle root; or
         // 2b. completely separate from the Moodle root (symlink).
-        // If none of these conditions are met, we will fallback to the default vendor directory within the Moodle root.
+        // If none of these conditions are met, we will fallback to the default directory within the Moodle root.
         if (class_exists(\Composer\InstalledVersions::class)) {
             $rootrealpath = realpath($rootdir);
             foreach (\Composer\InstalledVersions::getAllRawData() as $packagedata) {
@@ -158,7 +171,7 @@ class composer {
                 // First check if this is the main Moodle core package -- Moodle is not installed using Composer.
                 if ($package['type'] === 'moodle-core') {
                     if (isset($package['install_path']) && is_dir($package['install_path'] . '/vendor')) {
-                        return realpath($package['install_path']) . '/vendor';
+                        return realpath($package['install_path']);
                     }
                 }
 
@@ -167,7 +180,7 @@ class composer {
                 if ($package['type'] === 'project' && array_key_exists('install_path', $package)) {
                     $realpath = $package['install_path'];
                     if (str_starts_with($rootrealpath, $realpath)) {
-                        return realpath($realpath) . "/vendor";
+                        return realpath($realpath);
                     }
 
                     // Our final option is that Moodle is installed using Composer,
@@ -176,14 +189,14 @@ class composer {
                     // Note: We already checked if the realpath is a parent of the Moodle root,
                     // so here we only need to check if it is not a child.
                     if (!str_starts_with($realpath, $rootrealpath)) {
-                        return realpath($realpath) . "/vendor";
+                        return realpath($realpath);
                     }
                 }
             }
         }
 
-        // Fallback to the default vendor directory within the Moodle root if no specific vendor directory was found.
-        return realpath($rootdir) . "/vendor";
+        // Fallback to the default directory within the Moodle root if no specific directory was found.
+        return realpath($rootdir);
     }
 
     /**
