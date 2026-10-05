@@ -842,6 +842,29 @@ class manager {
     }
 
     /**
+     * This function will return a list of all the adhoc tasks that are currently queued in the database.
+     *
+     * @return \core\task\adhoc_task[]
+     */
+    public static function get_all_adhoc_tasks(): array {
+        global $DB;
+
+        $records = $DB->get_records('task_adhoc', null, 'nextruntime, classname');
+        $tasks = [];
+
+        foreach ($records as $record) {
+            try {
+                $tasks[] = self::adhoc_task_from_record($record);
+            } catch (\moodle_exception $e) {
+                // Safety check in case the task in the DB does not match a real class (maybe something was uninstalled).
+                debugging("Failed to load task: $record->classname", DEBUG_DEVELOPER, $e->getTrace());
+            }
+        }
+
+        return $tasks;
+    }
+
+    /**
      * This function will return a list of all adhoc tasks that have a faildelay
      *
      * @param int $delay filter how long the task has been delayed

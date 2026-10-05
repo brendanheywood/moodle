@@ -38,6 +38,7 @@ list($options, $unrecognized) = cli_get_params(
         'id' => null,
         'ignorelimits' => false,
         'keep-alive' => 0,
+        'list-all' => false,
         'showdebugging' => false,
         'showsql' => false,
         'taskslimit' => null,
@@ -69,6 +70,7 @@ Options:
      --id=N             Run (failed) task with id
  -i  --ignorelimits     Ignore task_adhoc_concurrency_limit and task_adhoc_max_runtime limits
  -k, --keep-alive=N     Keep this script alive for N seconds and poll for new adhoc tasks
+     --list-all         List all queued adhoc task instances, with their ids
      --showdebugging    Show developer level debugging information
      --showsql          Show sql queries before they are executed
  -l, --taskslimit=N     Run at most N tasks
@@ -95,6 +97,59 @@ EOT;
 
 if ($options['help']) {
     echo $help;
+    exit(0);
+}
+
+if ($options['list-all']) {
+    cli_heading("List of adhoc tasks ($CFG->wwwroot)");
+
+    // Always show 3-letter day/month names so the columns line up neatly.
+    $shortdate = function (int $timestamp): string {
+        $datetime = (new DateTime('@' . $timestamp))->setTimezone(core_date::get_user_timezone_object());
+        return $datetime->format('D, d M Y, h:i A');
+    };
+
+    $tasks = \core\task\manager::get_all_adhoc_tasks();
+
+    // Pad each column to fit its longest value, so everything lines up.
+    $idheader = get_string('taskid', 'tool_task');
+    $idwidth = max(array_merge(array_map(fn($task) => strlen((string) $task->get_id()), $tasks), [strlen($idheader)]));
+
+    $classheader = get_string('adhoctasks', 'tool_task');
+    $classwidth = max(array_merge(array_map(fn($task) => strlen('\\' . get_class($task)), $tasks), [strlen($classheader)]));
+
+    $nextrunheader = get_string('nextruntime', 'tool_task');
+    $nextrunstrs = array_map(function ($task) use ($shortdate) {
+        $nextrun = $task->get_next_run_time();
+        if ($nextrun > time()) {
+            return $shortdate($nextrun);
+        }
+        // The 'asap' string contains an <abbr> tag meant for HTML output; strip it for CLI display.
+        return html_to_text(get_string('asap', 'tool_task'), 0, false);
+    }, $tasks);
+    $nextrunwidth = max(array_merge(array_map('strlen', $nextrunstrs), [strlen($nextrunheader)]));
+
+    $statusheader = get_string('status');
+    $statusstrs = array_map(function ($task) {
+        if ($task->get_timestarted()) {
+            return get_string('running', 'tool_task');
+        } else if ($task->get_fail_delay()) {
+            return get_string('failed', 'tool_task') . " ({$task->get_fail_delay()}s)";
+        }
+        return '';
+    }, $tasks);
+    $statuswidth = max(array_merge(array_map('strlen', $statusstrs), [strlen($statusheader)]));
+
+    echo str_pad($idheader, $idwidth, ' ') . ' '
+        . str_pad($classheader, $classwidth, ' ') . ' '
+        . str_pad($nextrunheader, $nextrunwidth, ' ') . '  '
+        . str_pad($statusheader, $statuswidth, ' ') . "\n";
+    foreach ($tasks as $index => $task) {
+        echo str_pad((string) $task->get_id(), $idwidth, ' ') . ' '
+            . str_pad('\\' . get_class($task), $classwidth, ' ') . ' '
+            . str_pad($nextrunstrs[$index], $nextrunwidth, ' ') . '  '
+            . str_pad($statusstrs[$index], $statuswidth, ' ') . "\n";
+    }
     exit(0);
 }
 
