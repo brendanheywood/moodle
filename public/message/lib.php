@@ -354,8 +354,8 @@ function get_message_processors($ready = false, $reset = false, $resetonly = fal
     }
 
     if (empty($processors)) {
-        // Get all processors, ensure the name column is the first so it will be the array key
-        $processors = $DB->get_records('message_processors', null, 'name DESC', 'name, id, enabled');
+        // Get all processors, ensure the name column is the first so it will be the array key.
+        $processors = $DB->get_records('message_processors', null, 'name', 'name, id, enabled');
         foreach ($processors as &$processor){
             $processor = \core_message\api::get_processed_processor_object($processor);
         }
