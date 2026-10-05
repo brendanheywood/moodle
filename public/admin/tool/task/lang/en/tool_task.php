@@ -56,6 +56,7 @@ $string['defaultx'] = 'Default: {$a}';
 $string['deleteadhoctask'] = 'Delete ad hoc task {$a}';
 $string['disabled'] = 'Disabled';
 $string['disabled_help'] = 'Disabled scheduled tasks are not executed from cron, however they can still be executed manually via the Command Line Interface (CLI) tool.';
+$string['due'] = 'Due';
 $string['edittaskschedule'] = 'Edit task schedule: {$a}';
 $string['enablerunnow'] = 'Allow \'Run now\' for scheduled tasks';
 $string['enablerunnow_desc'] = 'Allows administrators to run a single scheduled task immediately, rather than waiting for it to run as scheduled. The feature requires \'Path to PHP CLI\' (pathtophp) to be set in System paths. The task runs on the web server, so you may wish to disable this feature to avoid potential performance issues.';

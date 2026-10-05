@@ -38,6 +38,7 @@ list($options, $unrecognized) = cli_get_params(
         'id' => null,
         'ignorelimits' => false,
         'keep-alive' => 0,
+        'list' => false,
         'list-all' => false,
         'showdebugging' => false,
         'showsql' => false,
@@ -70,6 +71,7 @@ Options:
      --id=N             Run (failed) task with id
  -i  --ignorelimits     Ignore task_adhoc_concurrency_limit and task_adhoc_max_runtime limits
  -k, --keep-alive=N     Keep this script alive for N seconds and poll for new adhoc tasks
+     --list             List a summary of queued adhoc tasks, grouped by task
      --list-all         List all queued adhoc task instances, with their ids
      --showdebugging    Show developer level debugging information
      --showsql          Show sql queries before they are executed
@@ -100,14 +102,77 @@ if ($options['help']) {
     exit(0);
 }
 
+// Always show 3-letter day/month names so the columns line up neatly.
+$shortdate = function (int $timestamp): string {
+    $datetime = (new DateTime('@' . $timestamp))->setTimezone(core_date::get_user_timezone_object());
+    return $datetime->format('D, d M Y, h:i A');
+};
+
+if ($options['list']) {
+    cli_heading("Summary of adhoc tasks ($CFG->wwwroot)");
+
+    $summary = \core\task\manager::get_adhoc_tasks_summary();
+    $rows = [];
+    foreach ($summary as $classes) {
+        foreach ($classes as $classname => $stats) {
+            if ($stats['stop']) {
+                $nextrun = get_string('never', 'admin');
+            } else if ($stats['due'] > 0) {
+                // The 'asap' string contains an <abbr> tag meant for HTML output; strip it for CLI display.
+                $nextrun = html_to_text(get_string('asap', 'tool_task'), 0, false);
+            } else if ($stats['nextruntime']) {
+                $nextrun = $shortdate($stats['nextruntime']);
+            } else {
+                $nextrun = '';
+            }
+
+            $rows[] = [
+                'classname' => $classname,
+                'count' => (string) $stats['count'],
+                'running' => (string) $stats['running'],
+                'due' => (string) $stats['due'],
+                'failed' => (string) $stats['failed'],
+                'nextrun' => $nextrun,
+            ];
+        }
+    }
+
+    // Pad each column to fit its longest value, so everything lines up.
+    $headers = [
+        'classname' => get_string('adhoctasks', 'tool_task'),
+        'count' => get_string('total'),
+        'running' => get_string('running', 'tool_task'),
+        'due' => get_string('due', 'tool_task'),
+        'failed' => get_string('failed', 'tool_task'),
+        'nextrun' => get_string('nextruntime', 'tool_task'),
+    ];
+    $widths = array_map(
+        fn($column) => max(array_merge(array_map(fn($row) => strlen($row[$column]), $rows), [strlen($headers[$column])])),
+        array_keys($headers)
+    );
+    $widths = array_combine(array_keys($headers), $widths);
+    $numericcolumns = ['count', 'running', 'due', 'failed'];
+
+    $printrow = function ($row) use ($headers, $widths, $numericcolumns) {
+        echo implode('  ', array_map(
+            fn($column) => str_pad(
+                $row[$column],
+                $widths[$column],
+                ' ',
+                in_array($column, $numericcolumns) ? STR_PAD_LEFT : STR_PAD_RIGHT
+            ),
+            array_keys($headers)
+        )) . "\n";
+    };
+    $printrow($headers);
+    foreach ($rows as $row) {
+        $printrow($row);
+    }
+    exit(0);
+}
+
 if ($options['list-all']) {
     cli_heading("List of adhoc tasks ($CFG->wwwroot)");
-
-    // Always show 3-letter day/month names so the columns line up neatly.
-    $shortdate = function (int $timestamp): string {
-        $datetime = (new DateTime('@' . $timestamp))->setTimezone(core_date::get_user_timezone_object());
-        return $datetime->format('D, d M Y, h:i A');
-    };
 
     $tasks = \core\task\manager::get_all_adhoc_tasks();
 
