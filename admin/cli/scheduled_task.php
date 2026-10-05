@@ -101,16 +101,41 @@ if ($options['list']) {
     $header = get_string('scheduledtasks', 'tool_task');
     $classwidth = max(array_merge(array_map(fn($task) => strlen('\\' . get_class($task)), $tasks), [strlen($header)]));
 
-    echo str_pad($header, $classwidth, ' ') . ' ' . str_pad(get_string('runpattern', 'tool_task'), 17, ' ')
+    // Each cron spec part (minute, hour, day, etc.) gets its own column width, so they all line up too.
+    $cronlabels = ['Min', 'Hour', 'DoM', 'Mon', 'DoW'];
+    $cronparts = array_map(fn($task) => [
+        $task->get_minute(),
+        $task->get_hour(),
+        $task->get_day(),
+        $task->get_month(),
+        $task->get_day_of_week(),
+    ], $tasks);
+    $numcolumns = 5;
+    $cronwidths = array_map(
+        function ($column) use ($cronparts, $cronlabels) {
+            $values = array_column($cronparts, $column);
+            $values[] = $cronlabels[$column];
+            return max(array_merge(array_map('strlen', $values), [4]));
+        },
+        range(0, $numcolumns - 1)
+    );
+    $schedulewidth = array_sum($cronwidths) + count($cronwidths) - 1;
+    $scheduleheader = implode(' ', array_map(
+        fn($label, $width) => str_pad($label, $width, ' '),
+        $cronlabels,
+        $cronwidths
+    ));
+
+    echo str_pad($header, $classwidth, ' ') . ' '
+        . str_pad($scheduleheader, max($schedulewidth, 17), ' ')
         . ' ' . str_pad(get_string('lastruntime', 'tool_task'), 40, ' ') . get_string('nextruntime', 'tool_task') . "\n";
-    foreach ($tasks as $task) {
+    foreach ($tasks as $index => $task) {
         $class = '\\' . get_class($task);
-        $schedule = $task->get_minute() . ' '
-            . $task->get_hour() . ' '
-            . $task->get_day() . ' '
-            . $task->get_day_of_week() . ' '
-            . $task->get_month() . ' '
-            . $task->get_day_of_week();
+        $schedule = implode(' ', array_map(
+            fn($part, $width) => str_pad($part, $width, ' '),
+            $cronparts[$index],
+            $cronwidths
+        ));
         $nextrun = $task->get_next_run_time();
         $lastrun = $task->get_last_run_time();
 
@@ -134,7 +159,7 @@ if ($options['list']) {
             $lastrun = get_string('never');
         }
 
-        echo str_pad($class, $classwidth, ' ') . ' ' . str_pad($schedule, 17, ' ') .
+        echo str_pad($class, $classwidth, ' ') . ' ' . str_pad($schedule, $schedulewidth, ' ') .
             ' ' . str_pad($lastrun, 40, ' ') . ' ' . $nextrun . "\n";
     }
     exit(0);
