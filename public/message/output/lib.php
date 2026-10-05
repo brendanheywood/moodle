@@ -71,6 +71,16 @@ abstract class message_output {
     }
 
     /**
+     * Returns a URL to this processor's own dedicated settings page, if it has one, instead of
+     * the generic '/admin/settings.php?section=messagesetting<name>' page built from settings.php.
+     *
+     * @return moodle_url|null
+     */
+    public function get_settings_url(): ?\moodle_url {
+        return null;
+    }
+
+    /**
      * Are the message processor's user specific settings configured?
      *
      * @param  stdClass $user the user object, defaults to $USER.

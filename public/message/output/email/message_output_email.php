@@ -227,4 +227,9 @@ class message_output_email extends message_output {
     public function can_send_to_any_users() {
         return true;
     }
+
+    #[\Override]
+    public function get_settings_url(): ?\moodle_url {
+        return new \moodle_url('/admin/settings.php', ['section' => 'outgoingmailconfig']);
+    }
 }

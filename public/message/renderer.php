@@ -123,9 +123,14 @@ class core_message_renderer extends plugin_renderer_base {
 
             // Settings
             $settings = new html_table_cell();
-            if ($processor->available && $processor->hassettings) {
-                $settingsurl = new moodle_url('/admin/settings.php', array('section' => 'messagesetting'.$processor->name));
-                $settings->text = html_writer::link($settingsurl, get_string('settings', 'message'));
+            if ($processor->available) {
+                $settingsurl = $processor->object->get_settings_url();
+                if (!$settingsurl && $processor->hassettings) {
+                    $settingsurl = new moodle_url('/admin/settings.php', ['section' => 'messagesetting' . $processor->name]);
+                }
+                if ($settingsurl) {
+                    $settings->text = html_writer::link($settingsurl, get_string('settings', 'message'));
+                }
             }
 
             $row->cells = [$name, $enable, $configured, $settings];
