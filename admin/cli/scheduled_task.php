@@ -95,6 +95,12 @@ if ($options['showsql'] || !empty($CFG->showcronsql)) {
 if ($options['list']) {
     cli_heading("List of scheduled tasks ($CFG->wwwroot)");
 
+    // Always show 3-letter day/month names so the columns line up neatly.
+    $shortdate = function (int $timestamp): string {
+        $datetime = (new DateTime('@' . $timestamp))->setTimezone(core_date::get_user_timezone_object());
+        return $datetime->format('D, d M Y, h:i A');
+    };
+
     $tasks = \core\task\manager::get_all_scheduled_tasks();
 
     // Pad the first column to fit the longest class name, so everything lines up.
@@ -126,9 +132,37 @@ if ($options['list']) {
         $cronwidths
     ));
 
+    $nextrunstrs = array_map(function ($task) use ($shortdate) {
+        $nextrun = $task->get_next_run_time();
+
+        $plugininfo = core_plugin_manager::instance()->get_plugin_info($task->get_component());
+        $plugindisabled = $plugininfo && $plugininfo->is_enabled() === false && !$task->get_run_if_component_disabled();
+
+        if ($plugindisabled) {
+            return get_string('plugindisabled', 'tool_task');
+        } else if ($task->get_disabled()) {
+            return get_string('taskdisabled', 'tool_task');
+        } else if ($nextrun > time()) {
+            return $shortdate($nextrun);
+        } else {
+            // The 'asap' string contains an <abbr> tag meant for HTML output; strip it for CLI display.
+            return html_to_text(get_string('asap', 'tool_task'), 0, false);
+        }
+    }, $tasks);
+
+    $lastrunstrs = array_map(function ($task) use ($shortdate) {
+        $lastrun = $task->get_last_run_time();
+        return $lastrun ? $shortdate($lastrun) : get_string('never');
+    }, $tasks);
+
+    // Pad the "Last run" column to fit its longest value, now that dates are shortened.
+    $lastrunheader = get_string('lastruntime', 'tool_task');
+    $lastrunwidth = max(array_merge(array_map('strlen', $lastrunstrs), [strlen($lastrunheader)]));
+
     echo str_pad($header, $classwidth, ' ') . ' '
         . str_pad($scheduleheader, max($schedulewidth, 17), ' ')
-        . ' ' . str_pad(get_string('lastruntime', 'tool_task'), 40, ' ') . get_string('nextruntime', 'tool_task') . "\n";
+        . '  ' . str_pad($lastrunheader, $lastrunwidth, ' ') . '  '
+        . get_string('nextruntime', 'tool_task') . "\n";
     foreach ($tasks as $index => $task) {
         $class = '\\' . get_class($task);
         $schedule = implode(' ', array_map(
@@ -136,31 +170,9 @@ if ($options['list']) {
             $cronparts[$index],
             $cronwidths
         ));
-        $nextrun = $task->get_next_run_time();
-        $lastrun = $task->get_last_run_time();
-
-        $plugininfo = core_plugin_manager::instance()->get_plugin_info($task->get_component());
-        $plugindisabled = $plugininfo && $plugininfo->is_enabled() === false && !$task->get_run_if_component_disabled();
-
-        if ($plugindisabled) {
-            $nextrun = get_string('plugindisabled', 'tool_task');
-        } else if ($task->get_disabled()) {
-            $nextrun = get_string('taskdisabled', 'tool_task');
-        } else if ($nextrun > time()) {
-            $nextrun = userdate($nextrun);
-        } else {
-            // The 'asap' string contains an <abbr> tag meant for HTML output; strip it for CLI display.
-            $nextrun = html_to_text(get_string('asap', 'tool_task'), 0, false);
-        }
-
-        if ($lastrun) {
-            $lastrun = userdate($lastrun);
-        } else {
-            $lastrun = get_string('never');
-        }
 
         echo str_pad($class, $classwidth, ' ') . ' ' . str_pad($schedule, $schedulewidth, ' ') .
-            ' ' . str_pad($lastrun, 40, ' ') . ' ' . $nextrun . "\n";
+            '  ' . str_pad($lastrunstrs[$index], $lastrunwidth, ' ') . '  ' . $nextrunstrs[$index] . "\n";
     }
     exit(0);
 }
