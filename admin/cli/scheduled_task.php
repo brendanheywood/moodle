@@ -121,7 +121,8 @@ if ($options['list']) {
         } else if ($nextrun > time()) {
             $nextrun = userdate($nextrun);
         } else {
-            $nextrun = get_string('asap', 'tool_task');
+            // The 'asap' string contains an <abbr> tag meant for HTML output; strip it for CLI display.
+            $nextrun = html_to_text(get_string('asap', 'tool_task'), 0, false);
         }
 
         if ($lastrun) {
