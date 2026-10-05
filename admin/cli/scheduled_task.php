@@ -95,10 +95,13 @@ if ($options['showsql'] || !empty($CFG->showcronsql)) {
 if ($options['list']) {
     cli_heading("List of scheduled tasks ($CFG->wwwroot)");
 
-    $shorttime = get_string('strftimedatetimeshort');
-
     $tasks = \core\task\manager::get_all_scheduled_tasks();
-    echo str_pad(get_string('scheduledtasks', 'tool_task'), 50, ' ') . ' ' . str_pad(get_string('runpattern', 'tool_task'), 17, ' ')
+
+    // Pad the first column to fit the longest class name, so everything lines up.
+    $header = get_string('scheduledtasks', 'tool_task');
+    $classwidth = max(array_merge(array_map(fn($task) => strlen('\\' . get_class($task)), $tasks), [strlen($header)]));
+
+    echo str_pad($header, $classwidth, ' ') . ' ' . str_pad(get_string('runpattern', 'tool_task'), 17, ' ')
         . ' ' . str_pad(get_string('lastruntime', 'tool_task'), 40, ' ') . get_string('nextruntime', 'tool_task') . "\n";
     foreach ($tasks as $task) {
         $class = '\\' . get_class($task);
@@ -131,7 +134,7 @@ if ($options['list']) {
             $lastrun = get_string('never');
         }
 
-        echo str_pad($class, 50, ' ') . ' ' . str_pad($schedule, 17, ' ') .
+        echo str_pad($class, $classwidth, ' ') . ' ' . str_pad($schedule, 17, ' ') .
             ' ' . str_pad($lastrun, 40, ' ') . ' ' . $nextrun . "\n";
     }
     exit(0);
