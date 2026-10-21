@@ -38,9 +38,11 @@ defined('MOODLE_INTERNAL') || die();
  * @param int $itemid
  * @param string $originalfile
  * @param boolean $preferpng When true, it will try to generate a PNG file regardless of the original file.
+ * @param boolean $fit When true, the whole image is scaled down to fit inside the square icon instead of being cropped.
+ *      The padding is transparent, so the icon is always a PNG.
  * @return mixed new unique revision number or false if not saved
  */
-function process_new_icon($context, $component, $filearea, $itemid, $originalfile, $preferpng = false) {
+function process_new_icon($context, $component, $filearea, $itemid, $originalfile, $preferpng = false, $fit = false) {
     global $CFG;
 
     if (!is_file($originalfile)) {
@@ -82,7 +84,7 @@ function process_new_icon($context, $component, $filearea, $itemid, $originalfil
                 return false;
             }
             // If the user uploads a jpeg them we should process as a jpeg if possible.
-            if (!$preferpng && function_exists('imagejpeg')) {
+            if (!$preferpng && !$fit && function_exists('imagejpeg')) {
                 $imagefnc = 'imagejpeg';
                 $imageext = '.jpg';
                 $filters = null; // Not used.
@@ -123,7 +125,7 @@ function process_new_icon($context, $component, $filearea, $itemid, $originalfil
         $im1 = imagecreatetruecolor(100, 100);
         $im2 = imagecreatetruecolor(35, 35);
         $im3 = imagecreatetruecolor(512, 512);
-        if ($image->type != IMAGETYPE_JPEG and $imagefnc === 'imagepng') {
+        if (($image->type != IMAGETYPE_JPEG || $fit) && $imagefnc === 'imagepng') {
             if ($t) {
                 // Transparent GIF hacking...
                 $transparentcolour = imagecolorallocate($im1 , $t['red'] , $t['green'] , $t['blue']);
@@ -155,18 +157,39 @@ function process_new_icon($context, $component, $filearea, $itemid, $originalfil
         $im3 = imagecreate(512, 512);
     }
 
-    $cx = floor($image->width / 2);
-    $cy = floor($image->height / 2);
-
-    if ($image->width < $image->height) {
-        $half = floor($image->width / 2.0);
+    if ($fit) {
+        // Scale the whole image to fit inside each square canvas, centred, without cropping.
+        $longest = max($image->width, $image->height);
+        foreach ([[$im1, 100], [$im2, 35], [$im3, 512]] as [$canvas, $size]) {
+            $dstw = max(1, (int) round($image->width * $size / $longest));
+            $dsth = max(1, (int) round($image->height * $size / $longest));
+            imagecopyresampled(
+                $canvas,
+                $im,
+                (int) floor(($size - $dstw) / 2),
+                (int) floor(($size - $dsth) / 2),
+                0,
+                0,
+                $dstw,
+                $dsth,
+                $image->width,
+                $image->height,
+            );
+        }
     } else {
-        $half = floor($image->height / 2.0);
-    }
+        $cx = floor($image->width / 2);
+        $cy = floor($image->height / 2);
 
-    imagecopyresampled($im1, $im, 0, 0, $cx - $half, $cy - $half, 100, 100, $half * 2, $half * 2);
-    imagecopyresampled($im2, $im, 0, 0, $cx - $half, $cy - $half, 35, 35, $half * 2, $half * 2);
-    imagecopyresampled($im3, $im, 0, 0, $cx - $half, $cy - $half, 512, 512, $half * 2, $half * 2);
+        if ($image->width < $image->height) {
+            $half = floor($image->width / 2.0);
+        } else {
+            $half = floor($image->height / 2.0);
+        }
+
+        imagecopyresampled($im1, $im, 0, 0, $cx - $half, $cy - $half, 100, 100, $half * 2, $half * 2);
+        imagecopyresampled($im2, $im, 0, 0, $cx - $half, $cy - $half, 35, 35, $half * 2, $half * 2);
+        imagecopyresampled($im3, $im, 0, 0, $cx - $half, $cy - $half, 512, 512, $half * 2, $half * 2);
+    }
 
     $fs = get_file_storage();
 

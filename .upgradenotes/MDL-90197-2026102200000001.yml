@@ -1,0 +1,10 @@
+issueNumber: MDL-90197
+notes:
+  core:
+    - message: >-
+        The `process_new_icon()` function has a new optional `$fit` parameter.
+        When true, the whole image is scaled down to fit inside the square icon
+        instead of being cropped, leaving transparent padding, so the icon is
+        always saved as a PNG. Group pictures now use this, so they are no
+        longer cropped when newly uploaded.
+      type: improved
