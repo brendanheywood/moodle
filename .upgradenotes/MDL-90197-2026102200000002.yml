@@ -1,0 +1,9 @@
+issueNumber: MDL-90197
+notes:
+  mod_forum:
+    - message: >-
+        The group images in the `mod_forum/forum_discussion_post` and
+        `mod_forum/forum_discussion_nested_v2_first_post` templates no longer
+        use the `rounded-circle` class. Theme overrides of these templates
+        should be updated to match.
+      type: changed
