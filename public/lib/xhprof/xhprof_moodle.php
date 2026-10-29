@@ -172,7 +172,9 @@ function profiling_start() {
     } else if (extension_loaded('tideways')) {
         tideways_enable(TIDEWAYS_FLAGS_CPU + TIDEWAYS_FLAGS_MEMORY, array('ignored_functions' =>  $ignore));
     } else {
-        xhprof_enable(XHPROF_FLAGS_CPU + XHPROF_FLAGS_MEMORY, array('ignored_functions' => $ignore));
+        // Do not pass ignored_functions: in namespaced code the ignored call_user_func() calls corrupt the
+        // extension's recursion counters, producing self-parented entries (xhprof bug, longxinH/xhprof#91).
+        xhprof_enable(XHPROF_FLAGS_CPU + XHPROF_FLAGS_MEMORY);
     }
     profiling_is_running(true);
 

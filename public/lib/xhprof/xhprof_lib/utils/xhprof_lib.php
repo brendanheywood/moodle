@@ -586,13 +586,9 @@ function xhprof_compute_inclusive_times($raw_data) {
     list($parent, $child) = xhprof_parse_parent_child($parent_child);
 
     if ($parent == $child) {
-      /*
-       * XHProf PHP extension should never trigger this situation any more.
-       * Recursion is handled in the XHProf PHP extension by giving nested
-       * calls a unique recursion-depth appended name (for example, foo@1).
-       */
-      xhprof_error("Error in Raw Data: parent & child are both: $parent");
-      return;
+      // MOODLE: skip self-parented entries (xhprof extension recursion counter bug,
+      // see longxinH/xhprof#91) instead of rejecting the whole run.
+      continue;
     }
 
     if (!isset($symbol_tab[$child])) {
