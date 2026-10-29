@@ -46,3 +46,4 @@ TODO:
 20251024 - MDL-86235 - Andi Permana (andimendunia): Add table-hover class to profiling table
 20260424 - MDL-88424 - Andi Permana (andimendunia): Fix PHP 8.1 stripos() null deprecation in xhprof_parse_parent_child()
 20260828 - MDL-89582 - Huong Nguyen (huongn): Upgrade to 2.3.10 release; fix PHP 8.4 compatibility issue in xhprof_lib/display/xhprof.php
+WR485146 - Work around xhprof extension recursion counter bug: don't pass ignored_functions to xhprof_enable(); viewer skips self-parented entries
