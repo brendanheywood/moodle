@@ -411,6 +411,19 @@ class cachestore_file extends store implements
     }
 
     /**
+     * Gets the extension of cache files, which reflects the compressor in use.
+     *
+     * @return string
+     */
+    protected function file_extension(): string {
+        return match ($this->compressor) {
+            self::COMPRESSOR_PHP_GZIP => '.cache.gz',
+            self::COMPRESSOR_PHP_ZSTD => '.cache.zst',
+            default => '.cache',
+        };
+    }
+
+    /**
      * Gets a pattern suitable for use with glob to find all keys in the cache.
      *
      * @param string $prefix A prefix to use.
@@ -418,9 +431,9 @@ class cachestore_file extends store implements
      */
     protected function glob_keys_pattern($prefix = '') {
         if ($this->singledirectory) {
-            return $this->path . '/'.$prefix.'*.cache';
+            return $this->path . '/'.$prefix.'*'.$this->file_extension();
         } else {
-            return $this->path . '/*/'.$prefix.'*.cache';
+            return $this->path . '/*/'.$prefix.'*'.$this->file_extension();
         }
     }
 
@@ -434,7 +447,7 @@ class cachestore_file extends store implements
     protected function file_path_for_key($key, $create = false) {
         if ($this->singledirectory) {
             // Its a single directory, easy, just the store instances path + the file name.
-            return $this->path . '/' . $key . '.cache';
+            return $this->path . '/' . $key . $this->file_extension();
         } else {
             // We are using a single subdirectory to achieve 1 level.
            // We suffix the subdir so it does not clash with any windows
@@ -445,7 +458,7 @@ class cachestore_file extends store implements
                 // Create the directory. This function does it recursivily!
                 make_writable_directory($dir, false);
             }
-            return $dir . '/' . $key . '.cache';
+            return $dir . '/' . $key . $this->file_extension();
         }
     }
 
@@ -457,7 +470,7 @@ class cachestore_file extends store implements
      */
     public function get($key) {
         $this->lastiobytes = 0;
-        $filename = $key.'.cache';
+        $filename = $key . $this->file_extension();
         $file = $this->file_path_for_key($key);
         $ttl = $this->definition->get_ttl();
         $maxtime = 0;
@@ -545,7 +558,7 @@ class cachestore_file extends store implements
      * @return bool Returns true if the operation was a success, false otherwise.
      */
     public function delete($key) {
-        $filename = $key.'.cache';
+        $filename = $key . $this->file_extension();
         $file = $this->file_path_for_key($key);
         if (file_exists($file) && @unlink($file)) {
             unset($this->keys[$filename]);
@@ -580,7 +593,7 @@ class cachestore_file extends store implements
      */
     public function set($key, $data) {
         $this->ensure_path_exists();
-        $filename = $key.'.cache';
+        $filename = $key . $this->file_extension();
         $file = $this->file_path_for_key($key, true);
         $serialized = $this->prep_data_before_save($data);
         $this->lastiobytes = strlen($serialized);
@@ -653,7 +666,7 @@ class cachestore_file extends store implements
      * @return bool
      */
     public function has($key) {
-        $filename = $key.'.cache';
+        $filename = $key . $this->file_extension();
         $maxtime = cache::now() - $this->definition->get_ttl();
         if ($this->prescan) {
             return array_key_exists($filename, $this->keys) && $this->keys[$filename] >= $maxtime;
@@ -964,7 +977,7 @@ class cachestore_file extends store implements
             return $return;
         }
         foreach ($files as $file) {
-            $return[] = substr(basename($file), 0, -6);
+            $return[] = substr(basename($file), 0, -strlen($this->file_extension()));
         }
         return $return;
     }
@@ -983,8 +996,8 @@ class cachestore_file extends store implements
             return $return;
         }
         foreach ($files as $file) {
-            // Trim off ".cache" from the end.
-            $return[] = substr(basename($file), 0, -6);
+            // Trim off the file extension from the end.
+            $return[] = substr(basename($file), 0, -strlen($this->file_extension()));
         }
         return $return;
     }
